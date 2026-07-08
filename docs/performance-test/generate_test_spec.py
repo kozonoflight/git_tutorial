@@ -10,8 +10,7 @@ OUTPUT_PATH = "docs/performance-test/フライト決済センター_性能負荷
 # Styles
 HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
 MANUAL_FILL = PatternFill("solid", fgColor="E2EFDA")
-TOOL_FILL = PatternFill("solid", fgColor="FCE4D6")
-K6_FILL = PatternFill("solid", fgColor="FFF2CC")
+STUB_FILL = PatternFill("solid", fgColor="FCE4D6")
 THIN = Side(style="thin", color="AAAAAA")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
@@ -19,7 +18,6 @@ WRAP = Alignment(wrap_text=True, vertical="top")
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 RAMP_COLS = [f"同時{n}人" for n in range(1, 11)]
-LOAD_TOOL = "k6"
 PROCESS_COUNT = 2
 
 RESPONSE_CRITERIA_SHORT = "同時1〜2人: 3秒以内"
@@ -34,6 +32,12 @@ LARGE_DATA_PRECONDITION = (
     "1注文あたり9サプライヤー、1サプライヤーあたり10商品（計90商品）の注文データを用意。"
     "同時ユーザー数を1人→2人→3人…と段階的に増加させて手動で負荷をかける。"
 )
+
+BATCH_STUB_NOTE = (
+    "テストサイトのためフライト決済センター本体には接続できない。"
+    "100注文分の処理対象データを用意し、フライト決済センター呼び出しはスタブで代替する。"
+)
+
 FRONT_SCREENS_DISPLAY = [
     "クレジットカード一覧",
     "クレジットカード登録画面（フライト決済センター）",
@@ -57,11 +61,6 @@ ADMIN_SCREENS = [
     "注文変更処理",
     "注文キャンセル処理",
 ]
-
-BATCH_STUB_NOTE = (
-    "テストサイトのためフライト決済センター本体に負荷をかけられない。"
-    "100注文分のデータを用意し、フライト決済センター呼び出しはスタブで代替して実施する。"
-)
 
 
 def style_header_row(ws, row, col_count):
@@ -87,7 +86,7 @@ def set_col_widths(ws, widths):
 
 
 def empty_ramp_tail():
-    return [""] * (len(RAMP_COLS) + 3)  # ramp cols + 総合判定 + 実施日 + 備考
+    return [""] * (len(RAMP_COLS) + 3)
 
 
 def build_overview(wb):
@@ -96,34 +95,45 @@ def build_overview(wb):
     rows = [
         ["フライト決済センター 性能・負荷テスト仕様書", ""],
         ["", ""],
-        ["文書バージョン", "1.2"],
+        ["文書バージョン", "2.0"],
         ["作成日", "2026-07-08"],
         ["対象システム", "フライト決済センター（フロントサイト / 管理サイト）"],
         ["サイトプロセス数", f"{PROCESS_COUNT}"],
-        ["負荷テストツール", f"k6（テスト項目4で使用）"],
+        ["実施形態", "手動テスト（負荷ツールは使用しない）"],
         ["", ""],
         ["テスト目的", "新規作成画面・処理の性能および負荷耐性を確認する"],
         ["", ""],
         ["テスト区分", "内容", "実施方法", "合格基準"],
         [
             "1. 画面表示の秒数", "画面描画までの処理時間",
-            "手動（同時1人→10人を段階的に実施）",
+            "手動・段階テスト（同時1人→10人）",
             RESPONSE_CRITERIA_SHORT + " / 3人以降は段階的遅延許容",
         ],
         [
             "2. 同時操作の正常終了", "複数ユーザー同時操作時の正常完了",
-            "手動（同時1人→10人を段階的に実施）", "DB・フライト処理が正常完了",
+            "手動・段階テスト（同時1人→10人）", "DB・フライト処理が正常完了",
         ],
         [
             "3. 大量データの正常終了", "90商品/注文（9サプライヤー×10商品）条件下の処理完了",
-            "手動（同時1人→10人を段階的に実施）", "DB・フライト処理が正常完了",
+            "手動・段階テスト（同時1人→10人）", "DB・フライト処理が正常完了",
         ],
         [
-            "4. バッチ処理の大量データ処理", "100注文規模のバッチ正常完了",
-            f"k6 + スタブ（フライト決済センター代替）", "サイクル内完了・多重実行なし",
+            "4. バッチ処理の大量データ処理", "100注文に対するバッチの正常完了",
+            "100注文を用意し、バッチを一発実行（スタブ利用）", "正常終了・多重実行なし",
         ],
         ["", ""],
-        ["レスポンス時間の判定基準", ""],
+        ["テスト区分1〜3：段階的負荷テスト", ""],
+        ["対象", "テスト項目1・2・3"],
+        [
+            "実施方法",
+            "テスター人数を1人、2人、3人…と段階的に増やし、各段階で計測・正常終了を確認する（最大10人）。",
+        ],
+        [
+            "テスト項目3のデータ条件",
+            "1注文に9サプライヤー、1サプライヤーに10商品ずつ（計90商品）を注文商品とする。",
+        ],
+        ["", ""],
+        ["レスポンス時間の判定基準（テスト項目1）", ""],
         ["プロセス数", f"{PROCESS_COUNT}（サイトに用意されたプロセス数）"],
         ["同時1〜2人", "画面描画完了まで3秒以内"],
         [
@@ -132,27 +142,21 @@ def build_overview(wb):
             "3秒超過は許容。人数増加に伴い緩やかに遅延が増加することを確認（急激な劣化・タイムアウトはNG）",
         ],
         ["", ""],
-        ["段階的負荷テスト（人数増加）", ""],
-        [
-            "対象",
-            "テスト項目1（画面表示の秒数）、テスト項目2（同時操作の正常終了）、"
-            "テスト項目3（大量データの正常終了）",
-        ],
+        ["テスト区分4：バッチ一発実行テスト", ""],
         [
             "実施方法",
-            "同時操作人数を1人、2人、3人…と段階的に増やし、各段階での秒数・正常終了を確認する。"
-            "最大10人まで実施する。",
+            "100注文分の処理対象データを事前に用意する。"
+            "フライト決済センタースタブを有効化し、対象バッチを1回実行する。",
         ],
         [
-            "テスト項目3のデータ条件",
-            "1注文に9サプライヤー、1サプライヤーに10商品ずつ（計90商品）を注文商品とする。",
+            "スタブが必要な理由",
+            "テストサイトのためフライト決済センター本体に接続・負荷をかけられない。"
+            "決済センター呼び出しはスタブで代替する。",
         ],
-        ["", ""],
-        ["バッチテストの補足", ""],
         [
-            "k6 + スタブ",
-            "テストサイトのためフライト決済センターに直接負荷をかけられない。"
-            "100注文に対してk6でバッチ負荷をかけ、決済センター呼び出しはスタブで代替する。",
+            "確認内容",
+            "バッチが正常終了すること。fcmp_transaction_histories等の全対象データが処理されること。"
+            "多重実行等の不具合がないこと。",
         ],
         ["", ""],
         ["確認対象テーブル", "orders（注文）, fcmp_transaction_histories（クレジット履歴） ほか"],
@@ -177,22 +181,21 @@ def build_overview(wb):
     ws.merge_cells("A1:D1")
     ws["A1"].font = Font(bold=True, size=16)
     ws["A1"].alignment = CENTER
-    for r in (11, 17, 22, 28):
+    for r in (11, 17, 23, 28):
         style_header_row(ws, r, 4)
-    set_col_widths(ws, [28, 48, 28, 28])
+    set_col_widths(ws, [30, 50, 30, 30])
     ws.row_dimensions[1].height = 30
 
 
 def build_ramp_sheet(wb):
-    """Dedicated sheet explaining ramp-up test matrix."""
     ws = wb.create_sheet("段階的負荷テスト方針")
     rows = [
-        ["段階的負荷テスト方針（同時人数の増加）", ""],
+        ["段階的負荷テスト方針（テスト項目1〜3）", ""],
         ["", ""],
         ["項目", "内容"],
-        ["対象テスト区分", "1.画面表示の秒数 / 2.同時操作の正常終了 / 3.大量データの正常終了"],
-        ["負荷ツール", "テスト項目1・2・3: 手動（人数を段階的に増加） / テスト項目4: k6 + スタブ"],
-        ["同時人数", "1人 → 2人 → 3人 → … → 10人（各段階で計測・判定）"],
+        ["対象", "1.画面表示の秒数 / 2.同時操作の正常終了 / 3.大量データの正常終了"],
+        ["実施方法", "手動。同時人数を1人→2人→3人…→10人と段階的に増加"],
+        ["負荷ツール", "なし（手動テストのみ）"],
         ["サイトプロセス数", f"{PROCESS_COUNT}"],
         ["", ""],
         ["レスポンス時間の判定基準（テスト項目1）", ""],
@@ -209,16 +212,15 @@ def build_ramp_sheet(wb):
             "同時1-2人: 3秒以内 / 同時3-10人: 秒数を記録し緩やかな遅延増加を確認",
             "詳細シートの「同時N人」列に秒数（s）を記録",
         ],
-        ["2. 同時操作の正常終了", "fcmp_transaction_histories・フライト処理が正常完了か", "詳細シートの「同時N人」列にOK/NGを記録"],
         [
-            "3. 大量データの正常終了",
-            "90商品/注文（9サプライヤー×10商品）で手動負荷時に正常完了か",
+            "2. 同時操作の正常終了",
+            "fcmp_transaction_histories・フライト処理が正常完了か",
             "詳細シートの「同時N人」列にOK/NGを記録",
         ],
         [
-            "4. バッチ処理の大量データ",
-            "k6で100注文のバッチ負荷。スタブ経由で決済センター呼び出し",
-            "バッチシートに処理結果・多重実行の有無を記録",
+            "3. 大量データの正常終了",
+            "90商品/注文（9サプライヤー×10商品）で正常完了か",
+            "詳細シートの「同時N人」列にOK/NGを記録",
         ],
         ["", ""],
         ["大量データの注文条件（テスト項目3）", ""],
@@ -226,6 +228,11 @@ def build_ramp_sheet(wb):
         ["1サプライヤーあたりの商品数", "10"],
         ["1注文あたりの合計商品数", "90"],
         ["負荷のかけ方", "手動で同時ユーザー数を1→2→3…と段階的に増加"],
+        ["", ""],
+        ["バッチ一発実行テスト（テスト項目4）", ""],
+        ["実施方法", "100注文を用意し、対象バッチを1回実行。段階的負荷は行わない。"],
+        ["スタブ", "フライト決済センター呼び出しをスタブで代替（テストサイトの制約）"],
+        ["確認内容", "バッチ正常終了 / 全件処理 / 多重実行なし"],
     ]
     for r, row in enumerate(rows, 1):
         for c, val in enumerate(row, 1):
@@ -235,8 +242,9 @@ def build_ramp_sheet(wb):
     style_header_row(ws, 3, 2)
     style_header_row(ws, 9, 2)
     style_header_row(ws, 12, 3)
-    style_header_row(ws, 24, 2)
-    set_col_widths(ws, [28, 50, 30])
+    style_header_row(ws, 20, 2)
+    style_header_row(ws, 26, 2)
+    set_col_widths(ws, [30, 52, 28])
 
 
 def build_summary(wb):
@@ -250,27 +258,27 @@ def build_summary(wb):
 
     for screen in FRONT_SCREENS_DISPLAY:
         cases.append((
-            f"PT-{pid:03d}", "1.画面表示", "手動(1→10人)", screen, "フロント",
+            f"PT-{pid:03d}", "1.画面表示", "手動・段階(1→10人)", screen, "フロント",
             RESPONSE_CRITERIA_SHORT + " / 3人以降緩やかな遅延", "1〜10人", "高", "", "", "", "",
         ))
         pid += 1
 
     for screen in FRONT_SCREENS_CONCURRENT:
         cases.append((
-            f"PT-{pid:03d}", "2.同時操作", "手動(1→10人)", screen, "フロント",
+            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, "フロント",
             "fcmp_transaction_histories正常", "1〜10人", "高", "", "", "", "",
         ))
         pid += 1
 
     for screen in ADMIN_SCREENS:
         cases.append((
-            f"PT-{pid:03d}", "2.同時操作", "手動(1→10人)", screen, "管理",
+            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, "管理",
             "処理・決済正常完了", "1〜10人", "高", "", "", "", "他管理処理と同時実施可",
         ))
         pid += 1
 
     cases.append((
-        f"PT-{pid:03d}", "2.同時操作", "手動(1→10人)",
+        f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)",
         "出荷+注文変更+キャンセル同時", "管理",
         "各処理が干渉せず正常完了", "1〜10人", "高", "", "", "", "組合せ同時操作",
     ))
@@ -286,20 +294,20 @@ def build_summary(wb):
     for screen in large_screens:
         site = "フロント" if "画面" in screen else "管理"
         cases.append((
-            f"PT-{pid:03d}", "3.大量データ", "手動(1→10人)", screen, site,
+            f"PT-{pid:03d}", "3.大量データ", "手動・段階(1→10人)", screen, site,
             "90商品/注文で正常完了", "1〜10人", "高", "", "", "",
             "9サプライヤー×10商品=90商品",
         ))
         pid += 1
 
     for batch, site, note in [
-        ("再オーソリバッチ", "バッチ", "100注文・スタブ利用"),
-        ("障害取消実行バッチ（5分毎）", "バッチ", "100注文・スタブ利用・5分超過時確認"),
+        ("再オーソリバッチ", "バッチ", "100注文・スタブ・一発実行"),
+        ("障害取消実行バッチ（5分毎）", "バッチ", "100注文・スタブ・一発実行・5分超過時確認"),
         ("定期購入バッチ", "契約サイト", "100件・契約サイトで実施"),
     ]:
         cases.append((
-            f"PT-{pid:03d}", "4.バッチ", "k6+スタブ", batch, site,
-            "100注文処理・多重実行なし", "—", "高", "", "", "", note,
+            f"PT-{pid:03d}", "4.バッチ", "100注文+スタブ一発実行", batch, site,
+            "バッチ正常終了・全件処理", "—", "高", "", "", "", note,
         ))
         pid += 1
 
@@ -310,14 +318,9 @@ def build_summary(wb):
         for c, val in enumerate(case, 1):
             cell = ws.cell(row=r, column=c, value=val)
             if c == 3:
-                if "手動" in str(val):
-                    cell.fill = MANUAL_FILL
-                elif "k6" in str(val):
-                    cell.fill = K6_FILL
-                else:
-                    cell.fill = TOOL_FILL
+                cell.fill = MANUAL_FILL if "手動" in str(val) else STUB_FILL
     style_data_area(ws, 2, len(cases) + 1, len(headers))
-    set_col_widths(ws, [10, 14, 14, 34, 10, 26, 10, 8, 8, 10, 12, 24])
+    set_col_widths(ws, [10, 14, 18, 34, 10, 28, 10, 8, 8, 10, 12, 26])
     ws.freeze_panes = "A2"
 
 
@@ -339,12 +342,11 @@ def build_detail_sheet(wb, title, section_no, method, pass_criteria, cases, valu
     ws.cell(row=2, column=2, value=method)
     ws.cell(row=3, column=1, value="合格基準")
     ws.cell(row=3, column=2, value=pass_criteria)
+    merge_end = 3
     if value_hint:
         ws.cell(row=4, column=1, value="記録方法")
         ws.cell(row=4, column=2, value=value_hint)
         merge_end = 4
-    else:
-        merge_end = 3
     ws.merge_cells(start_row=2, start_column=2, end_row=merge_end, end_column=len(headers))
     ws.merge_cells(start_row=3, start_column=2, end_row=merge_end, end_column=len(headers))
     if value_hint:
@@ -361,7 +363,46 @@ def build_detail_sheet(wb, title, section_no, method, pass_criteria, cases, valu
             ws.cell(row=r, column=c, value=val)
 
     style_data_area(ws, data_start, data_start + len(cases) - 1, len(headers))
-    set_col_widths(ws, [10, 30, 8, 28, 38, 28, 14, 12] + [9] * 10 + [10, 12, 20])
+    set_col_widths(ws, [10, 30, 8, 28, 38, 28, 14, 14] + [9] * 10 + [10, 12, 20])
+    ws.freeze_panes = f"A{data_start}"
+
+
+def build_batch_detail_sheet(wb, cases):
+    ws = wb.create_sheet("4_バッチ処理の大量データ")
+    headers = [
+        "テストID", "対象バッチ", "サイト", "前提条件", "テスト手順",
+        "期待結果", "合格基準", "実施方法",
+        "バッチ実行結果", "処理件数", "所要時間", "多重実行",
+        "スタブ応答", "総合判定", "実施日", "備考",
+    ]
+    ws.cell(row=1, column=1, value="テスト項目4")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A1"].alignment = CENTER
+
+    info = [
+        ("実施方法", "100注文分の処理対象データを事前に用意し、フライト決済センタースタブを有効化したうえで、対象バッチを1回実行する。"),
+        ("合格基準", "バッチが正常終了すること。全100注文（件）が処理されること。多重実行等の不具合がないこと。"),
+        ("スタブ", BATCH_STUB_NOTE),
+        ("記録方法", "バッチ実行結果・処理件数・所要時間・多重実行の有無・スタブ応答を記録"),
+    ]
+    for i, (label, text) in enumerate(info, 2):
+        ws.cell(row=i, column=1, value=label)
+        ws.cell(row=i, column=2, value=text)
+        ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=len(headers))
+
+    header_row = len(info) + 3
+    for c, h in enumerate(headers, 1):
+        ws.cell(row=header_row, column=c, value=h)
+    style_header_row(ws, header_row, len(headers))
+
+    data_start = header_row + 1
+    for r, case in enumerate(cases, data_start):
+        for c, val in enumerate(case, 1):
+            ws.cell(row=r, column=c, value=val)
+
+    style_data_area(ws, data_start, data_start + len(cases) - 1, len(headers))
+    set_col_widths(ws, [10, 28, 10, 30, 36, 26, 16, 16, 12, 10, 10, 10, 12, 10, 12, 22])
     ws.freeze_panes = f"A{data_start}"
 
 
@@ -400,12 +441,12 @@ def build_pt1(wb):
         cases.append((
             f"PT-{i:03d}", screen, "フロント", pre,
             _display_steps(screen),
-            f"{screen}がエラーなく表示される", RESPONSE_CRITERIA_FULL, "手動(1→10人)",
+            f"{screen}がエラーなく表示される", RESPONSE_CRITERIA_FULL, "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
     build_detail_sheet(
         wb, "1_画面表示の秒数", 1,
-        f"手動テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、各画面の表示秒数を計測する。"
+        f"手動・段階テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、各画面の表示秒数を計測する。"
         f"サイトのプロセス数は{PROCESS_COUNT}。",
         RESPONSE_CRITERIA_FULL,
         cases,
@@ -452,7 +493,7 @@ def build_pt2(wb):
     for screen, site, pre, steps in concurrent_defs:
         cases.append((
             f"PT-{base_id + idx:03d}", screen, site, pre, steps,
-            "全操作が正常完了。DB・フライト処理に異常なし", "全件正常完了", "手動(1→10人)",
+            "全操作が正常完了。DB・フライト処理に異常なし", "全件正常完了", "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
         idx += 1
@@ -463,13 +504,13 @@ def build_pt2(wb):
         "出荷・変更・キャンセル対象注文を混在させて用意。",
         "1. ユーザーが役割分担し、出荷・注文変更・キャンセルを同時実行\n"
         "2. 各処理の完了状態とDBを確認\n3. 人数を1→2→3…と増やして繰り返す",
-        "処理が相互干渉せず全件正常完了", "全件正常完了", "手動(1→10人)",
+        "処理が相互干渉せず全件正常完了", "全件正常完了", "手動・段階(1→10人)",
         *combo_tail,
     ))
 
     build_detail_sheet(
         wb, "2_同時操作の正常終了", 2,
-        "手動テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、"
+        "手動・段階テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、"
         "fcmp_transaction_historiesおよびフライト決済センター処理の正常完了を確認する。",
         "fcmp_transaction_historiesおよびフライト決済センター処理が全件正常完了",
         cases,
@@ -504,13 +545,13 @@ def build_pt3(wb):
             f"PT-{base_id + i:03d}", screen, site,
             LARGE_DATA_PRECONDITION,
             steps,
-            "90商品/注文の大量データ条件下でも正常完了", "エラーなく正常完了", "手動(1→10人)",
+            "90商品/注文の大量データ条件下でも正常完了", "エラーなく正常完了", "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
 
     build_detail_sheet(
         wb, "3_大量データの正常終了", 3,
-        "手動テスト。1注文あたり9サプライヤー×10商品=90商品の注文データを使用し、"
+        "手動・段階テスト。1注文あたり9サプライヤー×10商品=90商品の注文データを使用し、"
         "同時ユーザー数を1人→2人→3人…→10人と段階的に増やして正常完了を確認する。",
         "orders, fcmp_transaction_histories等およびフライト決済センター処理が正常完了",
         cases,
@@ -523,40 +564,41 @@ def build_pt4(wb):
         len(FRONT_SCREENS_DISPLAY) + len(FRONT_SCREENS_CONCURRENT)
         + len(ADMIN_SCREENS) + 5 + 1
     )
+    empty_batch_tail = [""] * 8  # 実行結果〜備考
+
     cases = [
         (
             f"PT-{base_id:03d}", "再オーソリバッチ", "バッチ",
-            f"100注文分の再オーソリ対象データをfcmp_transaction_histories等に投入。{BATCH_STUB_NOTE}",
-            "1. フライト決済センタースタブを有効化\n2. k6でバッチ負荷をかけながら再オーソリバッチを起動\n"
-            "3. 全100注文に対して処理が実行されたことを確認\n4. 多重実行が発生していないことを確認",
-            "100注文すべてが1サイクル内で正常処理", "多重実行なし・全件処理", "k6+スタブ",
-            *empty_ramp_tail(),
+            f"100注文分の再オーソリ対象データをfcmp_transaction_histories等に事前投入。{BATCH_STUB_NOTE}",
+            "1. フライト決済センタースタブを有効化\n"
+            "2. 再オーソリバッチを1回実行\n"
+            "3. fcmp_transaction_historiesの全100注文が処理されたことを確認\n"
+            "4. 多重実行が発生していないことを確認",
+            "100注文すべてが正常処理され、バッチが正常終了", "正常終了・全件処理・多重実行なし",
+            "100注文+スタブ一発実行",
+            *empty_batch_tail,
         ),
         (
             f"PT-{base_id + 1:03d}", "障害取消実行バッチ（5分毎）", "バッチ",
-            f"100注文分の障害取消対象データを投入。バッチは5分毎実行。{BATCH_STUB_NOTE}",
-            "1. フライト決済センタースタブを有効化\n2. k6でバッチ負荷をかけながらバッチ実行を待機または手動起動\n"
+            f"100注文分の障害取消対象データを事前投入。{BATCH_STUB_NOTE}",
+            "1. フライト決済センタースタブを有効化\n"
+            "2. 障害取消実行バッチを1回実行（または次回スケジュール実行を待機）\n"
             "3. fcmp_transaction_historiesの全対象データが処理されたことを確認\n"
             "4. 5分を超える場合の挙動を確認",
-            "実行サイクル内で処理完了、または5分超過時の想定挙動", "多重実行なし", "k6+スタブ",
-            *([""] * 12 + ["5分以内に終わらない場合の挙動を必ず確認"]),
+            "バッチが正常終了し、全対象データが処理される", "正常終了・全件処理・多重実行なし",
+            "100注文+スタブ一発実行",
+            *([""] * 7 + ["5分以内に終わらない場合の挙動を必ず確認"]),
         ),
         (
             f"PT-{base_id + 2:03d}", "定期購入バッチ（契約サイト）", "契約サイト",
-            "契約サイトに100件の定期購入データを投入。",
-            "1. k6で負荷をかけながら定期購入バッチを起動\n2. 100件すべてが正常処理されたことを確認",
-            "100件の定期購入が正常完了", "全件正常完了", "k6",
-            *([""] * 12 + ["契約サイトで実施"]),
+            "契約サイトに100件の定期購入データを事前投入。",
+            "1. 定期購入バッチを1回実行\n2. 100件すべてが正常処理されたことを確認",
+            "100件の定期購入が正常完了", "正常終了・全件処理",
+            "100件一発実行",
+            *([""] * 7 + ["契約サイトで実施"]),
         ),
     ]
-    build_detail_sheet(
-        wb, "4_バッチ処理の大量データ", 4,
-        f"k6による負荷テスト。100注文分のデータを投入してバッチを実施。"
-        "テストサイトのためフライト決済センター本体には負荷をかけず、スタブで代替する。",
-        "短時間に大量処理対象が発生してもサイクル内に完了し、多重実行等の不具合がないこと",
-        cases,
-        value_hint="k6メトリクス・スタブ応答・バッチログ・fcmp_transaction_historiesの処理結果を記録",
-    )
+    build_batch_detail_sheet(wb, cases)
 
 
 def build_env_sheet(wb):
@@ -565,16 +607,15 @@ def build_env_sheet(wb):
         ["項目", "内容", "記入欄"],
         ["テスト環境", "STG / 検証環境 等", ""],
         ["テスト実施期間", "", ""],
-        ["手動テスト（項目1・2・3）", "同時1人→10人を段階的に実施（最大10名）", ""],
-        ["負荷テストツール", "k6（テスト項目4で使用）", ""],
-        ["k6スクリプト格納場所", "", ""],
+        ["段階テスト（項目1・2・3）", "手動。同時1人→10人を段階的に実施（最大10名）", ""],
+        ["バッチテスト（項目4）", "100注文を用意し、バッチを1回実行。スタブ利用", ""],
+        ["負荷テストツール", "使用しない（手動テストのみ）", ""],
         ["サイトプロセス数", f"{PROCESS_COUNT}", ""],
-        ["レスポンス基準", RESPONSE_CRITERIA_FULL, ""],
+        ["レスポンス基準（項目1）", RESPONSE_CRITERIA_FULL, ""],
         ["データ投入方法", "SQL / API / 手動セットアップ 等", ""],
         ["大量データ条件（項目3）", "1注文: 9サプライヤー × 10商品 = 90商品", ""],
-        ["バッチテスト（項目4）", "100注文。k6で負荷。フライト決済センターはスタブで代替", ""],
-        ["スタブ設定", "スタブのURL・切替方法・担当者", ""],
-        ["監視対象", "APサーバ CPU/メモリ、DB、スタブ応答時間", ""],
+        ["スタブ設定", "スタブのURL・切替方法・担当者（項目4で必須）", ""],
+        ["監視対象", "APサーバ CPU/メモリ、DB、バッチログ", ""],
         ["ログ確認先", "アプリログ、バッチログ、スタブログ", ""],
         ["テストデータ準備担当", "", ""],
         ["障害時エスカレーション", "", ""],
@@ -584,7 +625,7 @@ def build_env_sheet(wb):
             ws.cell(row=r, column=c, value=val)
     style_header_row(ws, 1, 3)
     style_data_area(ws, 2, len(rows), 3)
-    set_col_widths(ws, [24, 44, 30])
+    set_col_widths(ws, [26, 48, 30])
 
 
 def main():

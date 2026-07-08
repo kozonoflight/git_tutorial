@@ -38,29 +38,24 @@ BATCH_STUB_NOTE = (
     "100注文分の処理対象データを用意し、フライト決済センター呼び出しはスタブで代替する。"
 )
 
-FRONT_SCREENS_DISPLAY = [
-    "クレジットカード一覧",
-    "クレジットカード登録画面（フライト決済センター）",
-    "クレジットカード登録画面からの戻り",
-    "クレジットカード削除",
-    "クレカ使用での購入",
-    "クレカ使用での見積購入",
-    "お支払方法選択画面",
-    "見積購入でのお支払方法選択画面",
+# テスト項目1〜3で網羅する全画面・処理（11件）
+ALL_TARGETS = [
+    ("クレジットカード一覧", "フロント"),
+    ("クレジットカード登録画面（フライト決済センター）", "フロント"),
+    ("クレジットカード登録画面からの戻り", "フロント"),
+    ("クレジットカード削除", "フロント"),
+    ("クレカ使用での購入", "フロント"),
+    ("クレカ使用での見積購入", "フロント"),
+    ("お支払方法選択画面", "フロント"),
+    ("見積購入でのお支払方法選択画面", "フロント"),
+    ("出荷処理", "管理"),
+    ("注文変更処理", "管理"),
+    ("注文キャンセル処理", "管理"),
 ]
-
-FRONT_SCREENS_CONCURRENT = [
-    "クレジットカード登録",
-    "クレジットカード削除",
-    "クレカ使用での購入",
-    "クレカ使用での見積購入",
-]
-
-ADMIN_SCREENS = [
-    "出荷処理",
-    "注文変更処理",
-    "注文キャンセル処理",
-]
+TARGET_COUNT = len(ALL_TARGETS)
+PT2_START = TARGET_COUNT + 1
+PT3_START = TARGET_COUNT * 2 + 1
+PT4_START = TARGET_COUNT * 3 + 1
 
 
 def style_header_row(ws, row, col_count):
@@ -95,7 +90,7 @@ def build_overview(wb):
     rows = [
         ["フライト決済センター 性能・負荷テスト仕様書", ""],
         ["", ""],
-        ["文書バージョン", "2.0"],
+        ["文書バージョン", "2.1"],
         ["作成日", "2026-07-08"],
         ["対象システム", "フライト決済センター（フロントサイト / 管理サイト）"],
         ["サイトプロセス数", f"{PROCESS_COUNT}"],
@@ -161,13 +156,10 @@ def build_overview(wb):
         ["", ""],
         ["確認対象テーブル", "orders（注文）, fcmp_transaction_histories（クレジット履歴） ほか"],
         ["", ""],
-        ["対象画面・処理（フロントサイト）", ""],
+        ["対象画面・処理（テスト項目1〜3で網羅）", ""],
     ]
-    for screen in FRONT_SCREENS_DISPLAY:
-        rows.append(["", screen])
-    rows += [["", ""], ["対象画面・処理（管理サイト）", ""]]
-    for screen in ADMIN_SCREENS:
-        rows.append(["", screen])
+    for screen, site in ALL_TARGETS:
+        rows.append(["", f"[{site}] {screen}"])
     rows += [
         ["", ""],
         ["対象バッチ", ""],
@@ -194,6 +186,7 @@ def build_ramp_sheet(wb):
         ["", ""],
         ["項目", "内容"],
         ["対象", "1.画面表示の秒数 / 2.同時操作の正常終了 / 3.大量データの正常終了"],
+        ["対象画面・処理", "全11画面・処理を各テスト区分で網羅（下表参照）"],
         ["実施方法", "手動。同時人数を1人→2人→3人…→10人と段階的に増加"],
         ["負荷ツール", "なし（手動テストのみ）"],
         ["サイトプロセス数", f"{PROCESS_COUNT}"],
@@ -229,6 +222,12 @@ def build_ramp_sheet(wb):
         ["1注文あたりの合計商品数", "90"],
         ["負荷のかけ方", "手動で同時ユーザー数を1→2→3…と段階的に増加"],
         ["", ""],
+        ["対象画面・処理一覧（各区分で全件実施）", "サイト"],
+    ]
+    for screen, site in ALL_TARGETS:
+        rows.append([screen, site])
+    rows += [
+        ["", ""],
         ["バッチ一発実行テスト（テスト項目4）", ""],
         ["実施方法", "100注文を用意し、対象バッチを1回実行。段階的負荷は行わない。"],
         ["スタブ", "フライト決済センター呼び出しをスタブで代替（テストサイトの制約）"],
@@ -243,7 +242,8 @@ def build_ramp_sheet(wb):
     style_header_row(ws, 9, 2)
     style_header_row(ws, 12, 3)
     style_header_row(ws, 20, 2)
-    style_header_row(ws, 26, 2)
+    style_header_row(ws, 23, 2)
+    style_header_row(ws, 29, 2)
     set_col_widths(ws, [30, 52, 28])
 
 
@@ -256,43 +256,22 @@ def build_summary(wb):
     cases = []
     pid = 1
 
-    for screen in FRONT_SCREENS_DISPLAY:
+    for screen, site in ALL_TARGETS:
         cases.append((
-            f"PT-{pid:03d}", "1.画面表示", "手動・段階(1→10人)", screen, "フロント",
+            f"PT-{pid:03d}", "1.画面表示", "手動・段階(1→10人)", screen, site,
             RESPONSE_CRITERIA_SHORT + " / 3人以降緩やかな遅延", "1〜10人", "高", "", "", "", "",
         ))
         pid += 1
 
-    for screen in FRONT_SCREENS_CONCURRENT:
+    for screen, site in ALL_TARGETS:
+        point = "DB・フライト処理が正常完了"
         cases.append((
-            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, "フロント",
-            "fcmp_transaction_histories正常", "1〜10人", "高", "", "", "", "",
+            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, site,
+            point, "1〜10人", "高", "", "", "", "",
         ))
         pid += 1
 
-    for screen in ADMIN_SCREENS:
-        cases.append((
-            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, "管理",
-            "処理・決済正常完了", "1〜10人", "高", "", "", "", "他管理処理と同時実施可",
-        ))
-        pid += 1
-
-    cases.append((
-        f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)",
-        "出荷+注文変更+キャンセル同時", "管理",
-        "各処理が干渉せず正常完了", "1〜10人", "高", "", "", "", "組合せ同時操作",
-    ))
-    pid += 1
-
-    large_screens = [
-        "お支払方法選択画面",
-        "見積購入でのお支払方法選択画面",
-        "出荷処理",
-        "注文変更処理",
-        "注文キャンセル処理",
-    ]
-    for screen in large_screens:
-        site = "フロント" if "画面" in screen else "管理"
+    for screen, site in ALL_TARGETS:
         cases.append((
             f"PT-{pid:03d}", "3.大量データ", "手動・段階(1→10人)", screen, site,
             "90商品/注文で正常完了", "1〜10人", "高", "", "", "",
@@ -406,47 +385,171 @@ def build_batch_detail_sheet(wb, cases):
     ws.freeze_panes = f"A{data_start}"
 
 
-def _display_steps(screen):
-    if "購入" in screen and "見積" not in screen:
+def _precondition(screen, site, test_type):
+    """Return precondition text for a screen."""
+    base = "テスト用アカウントでログイン済み。" if site == "フロント" else "管理サイトにログイン済み。"
+    extras = {
+        "クレジットカード一覧": "クレジットカードが1件以上登録済み。",
+        "クレジットカード登録画面（フライト決済センター）": "",
+        "クレジットカード登録画面からの戻り": "クレジットカード登録画面表示中、または登録完了後。",
+        "クレジットカード削除": "削除対象のクレジットカードが登録済み。",
+        "クレカ使用での購入": "購入可能な商品・クレジットカードを用意。",
+        "クレカ使用での見積購入": "見積購入可能な条件・クレジットカードを用意。",
+        "お支払方法選択画面": "商品がカートに入っている。",
+        "見積購入でのお支払方法選択画面": "見積購入フロー中。",
+        "出荷処理": "出荷対象の注文を用意。",
+        "注文変更処理": "変更対象の注文を用意。",
+        "注文キャンセル処理": "キャンセル対象の注文を用意。",
+    }
+    pre = base + extras.get(screen, "")
+    if test_type == "concurrent":
+        pre += "テスト用アカウント/注文を人数分用意。"
+    if test_type == "large":
+        pre = LARGE_DATA_PRECONDITION + pre
+    return pre
+
+
+def _display_steps(screen, site):
+    ramp = "3. 同時人数を1→2→3…と増やし、各段階で計測"
+    if screen == "クレカ使用での購入":
         return (
             "1. クレカ使用での購入フローを開始\n"
-            "2. 購入確定/決済画面の描画完了までの秒数を計測（s）\n"
-            "3. 同時人数を1→2→3…と増やし、各段階で計測"
+            "2. 購入確定/決済画面の描画完了までの秒数を計測（s）\n" + ramp
         )
-    if "見積購入" in screen:
+    if screen == "クレカ使用での見積購入":
         return (
             "1. クレカ使用での見積購入フローを開始\n"
-            "2. 見積購入確定/決済画面の描画完了までの秒数を計測（s）\n"
-            "3. 同時人数を1→2→3…と増やし、各段階で計測"
+            "2. 見積購入確定/決済画面の描画完了までの秒数を計測（s）\n" + ramp
+        )
+    if site == "管理":
+        return (
+            f"1. {screen}画面へ遷移\n"
+            "2. 画面描画完了までの秒数を計測（s）\n" + ramp
         )
     return (
         f"1. {screen}へ遷移する操作を実施\n"
-        "2. 画面描画完了までの秒数を計測（s）\n"
-        "3. 同時人数を1→2→3…と増やし、各段階で計測"
+        "2. 画面描画完了までの秒数を計測（s）\n" + ramp
     )
+
+
+def _concurrent_steps(screen, site):
+    ramp = "4. 人数を1→2→3…と増やして繰り返す"
+    steps_map = {
+        "クレジットカード一覧": (
+            "1. 指定人数が同時にクレジットカード一覧画面へ遷移\n"
+            "2. 一覧表示が正常完了することを確認\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面（フライト決済センター）": (
+            "1. 指定人数が同時にクレジットカード登録を実行\n"
+            "2. フライト決済センターで登録完了\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面からの戻り": (
+            "1. 指定人数が同時に登録画面から戻る操作を実行\n"
+            "2. 戻り先画面が正常表示されることを確認\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード削除": (
+            "1. 指定人数が同時にクレジットカード削除を実行\n"
+            "2. fcmp_transaction_historiesを確認\n3. 削除が正常完了することを確認\n" + ramp
+        ),
+        "クレカ使用での購入": (
+            "1. 指定人数が同時にクレカ購入を実行\n"
+            "2. orders, fcmp_transaction_historiesを確認\n"
+            "3. フライト決済センター処理画面を確認\n" + ramp
+        ),
+        "クレカ使用での見積購入": (
+            "1. 指定人数が同時に見積購入（クレカ）を実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "お支払方法選択画面": (
+            "1. 指定人数が同時にお支払方法選択画面へ遷移・操作\n"
+            "2. orders, fcmp_transaction_historiesを確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "見積購入でのお支払方法選択画面": (
+            "1. 指定人数が同時に見積購入の支払方法選択画面へ遷移・操作\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "出荷処理": (
+            "1. 指定人数が同時に出荷処理を実行\n"
+            "2. orders, fcmp_transaction_historiesを確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "注文変更処理": (
+            "1. 指定人数が同時に注文変更を実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "注文キャンセル処理": (
+            "1. 指定人数が同時に注文キャンセルを実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+    }
+    return steps_map[screen]
+
+
+def _large_data_steps(screen, site):
+    ramp = "5. 同時人数を1→2→3…と増やして繰り返す"
+    base = "1. 9サプライヤー×10商品=90商品の注文データを作成\n"
+    steps_map = {
+        "クレジットカード一覧": (
+            base + "2. クレジットカード一覧画面へ遷移\n"
+            "3. 画面表示・処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面（フライト決済センター）": (
+            base + "2. クレジットカード登録を実行\n"
+            "3. フライト決済センター処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面からの戻り": (
+            base + "2. 登録画面から戻る操作を実行\n"
+            "3. 戻り先画面・処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード削除": (
+            base + "2. クレジットカード削除を実行\n"
+            "3. 削除処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレカ使用での購入": (
+            base + "2. クレカ購入を実行\n"
+            "3. orders, fcmp_transaction_historiesを確認\n4. フライト決済センター処理を確認\n" + ramp
+        ),
+        "クレカ使用での見積購入": (
+            base + "2. クレカ見積購入を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "お支払方法選択画面": (
+            base + "2. お支払方法選択画面へ遷移\n"
+            "3. 画面表示・処理完了を確認\n4. orders, fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "見積購入でのお支払方法選択画面": (
+            base + "2. 見積購入の支払方法選択画面へ遷移\n"
+            "3. 処理完了とDBを確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "出荷処理": (
+            base + "2. 出荷処理を実行\n"
+            "3. orders, fcmp_transaction_historiesを確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "注文変更処理": (
+            base + "2. 注文変更処理を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "注文キャンセル処理": (
+            base + "2. 注文キャンセル処理を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+    }
+    return steps_map[screen]
 
 
 def build_pt1(wb):
     cases = []
-    for i, screen in enumerate(FRONT_SCREENS_DISPLAY, 1):
-        pre = "テスト用アカウントでログイン済み。"
-        if screen == "クレジットカード一覧":
-            pre += "クレジットカードが1件以上登録済み。"
-        elif screen == "クレジットカード削除":
-            pre += "削除対象のクレジットカードが登録済み。"
-        elif "購入" in screen:
-            pre += "購入/見積購入可能な商品・クレジットカードを用意。"
-        elif "支払方法" in screen:
-            pre += "商品がカートに入っている。"
+    for i, (screen, site) in enumerate(ALL_TARGETS, 1):
         cases.append((
-            f"PT-{i:03d}", screen, "フロント", pre,
-            _display_steps(screen),
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "display"),
+            _display_steps(screen, site),
             f"{screen}がエラーなく表示される", RESPONSE_CRITERIA_FULL, "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
     build_detail_sheet(
         wb, "1_画面表示の秒数", 1,
-        f"手動・段階テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、各画面の表示秒数を計測する。"
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        f"同時操作人数を1人→2人→3人…→10人と段階的に増やし、各画面の表示秒数を計測する。"
         f"サイトのプロセス数は{PROCESS_COUNT}。",
         RESPONSE_CRITERIA_FULL,
         cases,
@@ -455,62 +558,19 @@ def build_pt1(wb):
 
 
 def build_pt2(wb):
-    base_id = len(FRONT_SCREENS_DISPLAY) + 1
     cases = []
-    idx = 0
-
-    concurrent_defs = [
-        ("クレジットカード登録", "フロント",
-         "テスト用アカウントを人数分用意。",
-         "1. 指定人数が同時にクレジットカード登録を実行\n"
-         "2. フライト決済センターで登録完了\n3. fcmp_transaction_historiesを確認\n"
-         "4. 人数を1→2→3…と増やして繰り返す"),
-        ("クレジットカード削除", "フロント",
-         "各ユーザーに削除対象カードを用意。",
-         "1. 指定人数が同時にクレジットカード削除を実行\n2. fcmp_transaction_historiesを確認\n"
-         "3. 人数を1→2→3…と増やして繰り返す"),
-        ("クレカ使用での購入", "フロント",
-         "各ユーザーに購入可能な商品・カードを用意。",
-         "1. 指定人数が同時にクレカ購入を実行\n2. orders, fcmp_transaction_historiesを確認\n"
-         "3. フライト決済センター処理画面を確認\n4. 人数を1→2→3…と増やして繰り返す"),
-        ("クレカ使用での見積購入", "フロント",
-         "各ユーザーに見積購入可能な条件を用意。",
-         "1. 指定人数が同時に見積購入（クレカ）を実行\n2. 関連テーブル・フライト処理を確認\n"
-         "3. 人数を1→2→3…と増やして繰り返す"),
-        ("出荷処理", "管理",
-         "出荷対象の注文を各ユーザーに割当。",
-         "1. 指定人数が同時に出荷処理を実行\n2. orders, fcmp_transaction_historiesを確認\n"
-         "3. 人数を1→2→3…と増やして繰り返す"),
-        ("注文変更処理", "管理",
-         "変更対象の注文を各ユーザーに割当。",
-         "1. 指定人数が同時に注文変更を実行\n2. 関連テーブル・フライト処理を確認\n"
-         "3. 人数を1→2→3…と増やして繰り返す"),
-        ("注文キャンセル処理", "管理",
-         "キャンセル対象の注文を各ユーザーに割当。",
-         "1. 指定人数が同時に注文キャンセルを実行\n2. 関連テーブル・フライト処理を確認\n"
-         "3. 人数を1→2→3…と増やして繰り返す"),
-    ]
-    for screen, site, pre, steps in concurrent_defs:
+    for i, (screen, site) in enumerate(ALL_TARGETS, PT2_START):
         cases.append((
-            f"PT-{base_id + idx:03d}", screen, site, pre, steps,
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "concurrent"),
+            _concurrent_steps(screen, site),
             "全操作が正常完了。DB・フライト処理に異常なし", "全件正常完了", "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
-        idx += 1
-
-    combo_tail = [""] * 12 + ["出荷と注文処理の同時挙動を重点確認"]
-    cases.append((
-        f"PT-{base_id + idx:03d}", "出荷+注文変更+キャンセル同時", "管理",
-        "出荷・変更・キャンセル対象注文を混在させて用意。",
-        "1. ユーザーが役割分担し、出荷・注文変更・キャンセルを同時実行\n"
-        "2. 各処理の完了状態とDBを確認\n3. 人数を1→2→3…と増やして繰り返す",
-        "処理が相互干渉せず全件正常完了", "全件正常完了", "手動・段階(1→10人)",
-        *combo_tail,
-    ))
-
     build_detail_sheet(
         wb, "2_同時操作の正常終了", 2,
-        "手動・段階テスト。同時操作人数を1人→2人→3人…→10人と段階的に増やし、"
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        "同時操作人数を1人→2人→3人…→10人と段階的に増やし、"
         "fcmp_transaction_historiesおよびフライト決済センター処理の正常完了を確認する。",
         "fcmp_transaction_historiesおよびフライト決済センター処理が全件正常完了",
         cases,
@@ -519,39 +579,19 @@ def build_pt2(wb):
 
 
 def build_pt3(wb):
-    base_id = len(FRONT_SCREENS_DISPLAY) + len(FRONT_SCREENS_CONCURRENT) + len(ADMIN_SCREENS) + 1
-    large_defs = [
-        ("お支払方法選択画面", "フロント",
-         "1. 9サプライヤー×10商品=90商品の注文データを作成\n"
-         "2. お支払方法選択画面へ遷移\n3. 画面表示・処理完了を確認\n"
-         "4. orders, fcmp_transaction_historiesを確認\n5. 同時人数を1→2→3…と増やして繰り返す"),
-        ("見積購入でのお支払方法選択画面", "フロント",
-         "1. 見積購入フローで90商品の注文データを作成\n"
-         "2. 見積購入の支払方法選択画面へ遷移\n3. 処理完了とDBを確認\n"
-         "4. 同時人数を1→2→3…と増やして繰り返す"),
-        ("出荷処理", "管理",
-         "1. 90商品構成の出荷対象注文を用意\n2. 出荷処理を実行\n"
-         "3. orders, fcmp_transaction_historiesを確認\n4. 同時人数を1→2→3…と増やして繰り返す"),
-        ("注文変更処理", "管理",
-         "1. 90商品構成の変更対象注文を用意\n2. 注文変更処理を実行\n"
-         "3. 関連テーブル・フライト処理を確認\n4. 同時人数を1→2→3…と増やして繰り返す"),
-        ("注文キャンセル処理", "管理",
-         "1. 90商品構成のキャンセル対象注文を用意\n2. 注文キャンセル処理を実行\n"
-         "3. 関連テーブル・フライト処理を確認\n4. 同時人数を1→2→3…と増やして繰り返す"),
-    ]
     cases = []
-    for i, (screen, site, steps) in enumerate(large_defs):
+    for i, (screen, site) in enumerate(ALL_TARGETS, PT3_START):
         cases.append((
-            f"PT-{base_id + i:03d}", screen, site,
-            LARGE_DATA_PRECONDITION,
-            steps,
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "large"),
+            _large_data_steps(screen, site),
             "90商品/注文の大量データ条件下でも正常完了", "エラーなく正常完了", "手動・段階(1→10人)",
             *empty_ramp_tail(),
         ))
-
     build_detail_sheet(
         wb, "3_大量データの正常終了", 3,
-        "手動・段階テスト。1注文あたり9サプライヤー×10商品=90商品の注文データを使用し、"
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        "1注文あたり9サプライヤー×10商品=90商品の注文データを使用し、"
         "同時ユーザー数を1人→2人→3人…→10人と段階的に増やして正常完了を確認する。",
         "orders, fcmp_transaction_histories等およびフライト決済センター処理が正常完了",
         cases,
@@ -560,15 +600,11 @@ def build_pt3(wb):
 
 
 def build_pt4(wb):
-    base_id = (
-        len(FRONT_SCREENS_DISPLAY) + len(FRONT_SCREENS_CONCURRENT)
-        + len(ADMIN_SCREENS) + 5 + 1
-    )
-    empty_batch_tail = [""] * 8  # 実行結果〜備考
+    empty_batch_tail = [""] * 8
 
     cases = [
         (
-            f"PT-{base_id:03d}", "再オーソリバッチ", "バッチ",
+            f"PT-{PT4_START:03d}", "再オーソリバッチ", "バッチ",
             f"100注文分の再オーソリ対象データをfcmp_transaction_histories等に事前投入。{BATCH_STUB_NOTE}",
             "1. フライト決済センタースタブを有効化\n"
             "2. 再オーソリバッチを1回実行\n"
@@ -579,7 +615,7 @@ def build_pt4(wb):
             *empty_batch_tail,
         ),
         (
-            f"PT-{base_id + 1:03d}", "障害取消実行バッチ（5分毎）", "バッチ",
+            f"PT-{PT4_START + 1:03d}", "障害取消実行バッチ（5分毎）", "バッチ",
             f"100注文分の障害取消対象データを事前投入。{BATCH_STUB_NOTE}",
             "1. フライト決済センタースタブを有効化\n"
             "2. 障害取消実行バッチを1回実行（または次回スケジュール実行を待機）\n"
@@ -590,7 +626,7 @@ def build_pt4(wb):
             *([""] * 7 + ["5分以内に終わらない場合の挙動を必ず確認"]),
         ),
         (
-            f"PT-{base_id + 2:03d}", "定期購入バッチ（契約サイト）", "契約サイト",
+            f"PT-{PT4_START + 2:03d}", "定期購入バッチ（契約サイト）", "契約サイト",
             "契約サイトに100件の定期購入データを事前投入。",
             "1. 定期購入バッチを1回実行\n2. 100件すべてが正常処理されたことを確認",
             "100件の定期購入が正常完了", "正常終了・全件処理",

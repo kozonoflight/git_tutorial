@@ -5,7 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-OUTPUT_PATH = "docs/performance-test/フライト決済センター_性能負荷テスト仕様書.xlsx"
+OUTPUT_PATH = "docs/develop/fcmp/test/performance/フライト決済センター_性能負荷テスト仕様書.xlsx"
 
 # Styles
 HEADER_FILL = PatternFill("solid", fgColor="1F4E79")

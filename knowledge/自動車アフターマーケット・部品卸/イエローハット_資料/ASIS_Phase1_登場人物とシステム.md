@@ -123,6 +123,11 @@
 
 ## 4. Phase1 AS-IS 関係図（確認用）
 
+受注から出荷までの詳細スイムレーン:
+
+- [編集用PowerPoint](./ASIS_Phase1_受注から出荷_業務フロー.pptx)
+- [確認用画像](./yh_asis_phase1_order_to_ship.png)
+
 ```
                     【取引先側】
          ディーラー／整備工場／YH FC加盟店／中古車販売店？

@@ -1,0 +1,682 @@
+#!/usr/bin/env python3
+"""Generate performance/load test specification Excel for Flight Payment Center."""
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+
+OUTPUT_PATH = "docs/develop/fcmp/test/performance/フライト決済センター_性能負荷テスト仕様書.xlsx"
+
+# Styles
+HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
+MANUAL_FILL = PatternFill("solid", fgColor="E2EFDA")
+STUB_FILL = PatternFill("solid", fgColor="FCE4D6")
+THIN = Side(style="thin", color="AAAAAA")
+BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+WRAP = Alignment(wrap_text=True, vertical="top")
+CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+RAMP_COLS = [f"同時{n}人" for n in range(1, 11)]
+PROCESS_COUNT = 2
+
+RESPONSE_CRITERIA_SHORT = "同時1〜2人: 3秒以内"
+RESPONSE_CRITERIA_FULL = (
+    f"サイトのプロセス数は{PROCESS_COUNT}。"
+    "同時1〜2人: 画面描画完了まで3秒以内。"
+    "同時3人〜10人: プロセス数を超えるため待ちが発生する想定。"
+    "3秒超過は許容するが、人数増加に伴い緩やかに遅延が増加すること（急激な劣化・タイムアウトなし）。"
+)
+
+LARGE_DATA_PRECONDITION = (
+    "1注文あたり9サプライヤー、1サプライヤーあたり10商品（計90商品）の注文データを用意。"
+    "同時ユーザー数を1人→2人→3人…と段階的に増加させて手動で負荷をかける。"
+)
+
+BATCH_STUB_NOTE = (
+    "テストサイトのためフライト決済センター本体には接続できない。"
+    "100注文分の処理対象データを用意し、フライト決済センター呼び出しはスタブで代替する。"
+)
+
+# テスト項目1〜3で網羅する全画面・処理（11件）
+ALL_TARGETS = [
+    ("クレジットカード一覧", "フロント"),
+    ("クレジットカード登録画面（フライト決済センター）", "フロント"),
+    ("クレジットカード登録画面からの戻り", "フロント"),
+    ("クレジットカード削除", "フロント"),
+    ("クレカ使用での購入", "フロント"),
+    ("クレカ使用での見積購入", "フロント"),
+    ("お支払方法選択画面", "フロント"),
+    ("見積購入でのお支払方法選択画面", "フロント"),
+    ("出荷処理", "管理"),
+    ("注文変更処理", "管理"),
+    ("注文キャンセル処理", "管理"),
+]
+TARGET_COUNT = len(ALL_TARGETS)
+PT2_START = TARGET_COUNT + 1
+PT3_START = TARGET_COUNT * 2 + 1
+PT4_START = TARGET_COUNT * 3 + 1
+
+
+def style_header_row(ws, row, col_count):
+    for c in range(1, col_count + 1):
+        cell = ws.cell(row=row, column=c)
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = CENTER
+        cell.border = BORDER
+
+
+def style_data_area(ws, start_row, end_row, col_count):
+    for r in range(start_row, end_row + 1):
+        for c in range(1, col_count + 1):
+            cell = ws.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+
+
+def set_col_widths(ws, widths):
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def empty_ramp_tail():
+    return [""] * (len(RAMP_COLS) + 3)
+
+
+def build_overview(wb):
+    ws = wb.active
+    ws.title = "概要"
+    rows = [
+        ["フライト決済センター 性能・負荷テスト仕様書", ""],
+        ["", ""],
+        ["文書バージョン", "2.1"],
+        ["作成日", "2026-07-08"],
+        ["対象システム", "フライト決済センター（フロントサイト / 管理サイト）"],
+        ["サイトプロセス数", f"{PROCESS_COUNT}"],
+        ["実施形態", "手動テスト（負荷ツールは使用しない）"],
+        ["", ""],
+        ["テスト目的", "新規作成画面・処理の性能および負荷耐性を確認する"],
+        ["", ""],
+        ["テスト区分", "内容", "実施方法", "合格基準"],
+        [
+            "1. 画面表示の秒数", "画面描画までの処理時間",
+            "手動・段階テスト（同時1人→10人）",
+            RESPONSE_CRITERIA_SHORT + " / 3人以降は段階的遅延許容",
+        ],
+        [
+            "2. 同時操作の正常終了", "複数ユーザー同時操作時の正常完了",
+            "手動・段階テスト（同時1人→10人）", "DB・フライト処理が正常完了",
+        ],
+        [
+            "3. 大量データの正常終了", "90商品/注文（9サプライヤー×10商品）条件下の処理完了",
+            "手動・段階テスト（同時1人→10人）", "DB・フライト処理が正常完了",
+        ],
+        [
+            "4. バッチ処理の大量データ処理", "100注文に対するバッチの正常完了",
+            "100注文を用意し、バッチを一発実行（スタブ利用）", "正常終了・多重実行なし",
+        ],
+        ["", ""],
+        ["テスト区分1〜3：段階的負荷テスト", ""],
+        ["対象", "テスト項目1・2・3"],
+        [
+            "実施方法",
+            "テスター人数を1人、2人、3人…と段階的に増やし、各段階で計測・正常終了を確認する（最大10人）。",
+        ],
+        [
+            "テスト項目3のデータ条件",
+            "1注文に9サプライヤー、1サプライヤーに10商品ずつ（計90商品）を注文商品とする。",
+        ],
+        ["", ""],
+        ["レスポンス時間の判定基準（テスト項目1）", ""],
+        ["プロセス数", f"{PROCESS_COUNT}（サイトに用意されたプロセス数）"],
+        ["同時1〜2人", "画面描画完了まで3秒以内"],
+        [
+            "同時3人〜10人",
+            "プロセス数を超えるため待ちが発生する想定。"
+            "3秒超過は許容。人数増加に伴い緩やかに遅延が増加することを確認（急激な劣化・タイムアウトはNG）",
+        ],
+        ["", ""],
+        ["テスト区分4：バッチ一発実行テスト", ""],
+        [
+            "実施方法",
+            "100注文分の処理対象データを事前に用意する。"
+            "フライト決済センタースタブを有効化し、対象バッチを1回実行する。",
+        ],
+        [
+            "スタブが必要な理由",
+            "テストサイトのためフライト決済センター本体に接続・負荷をかけられない。"
+            "決済センター呼び出しはスタブで代替する。",
+        ],
+        [
+            "確認内容",
+            "バッチが正常終了すること。fcmp_transaction_histories等の全対象データが処理されること。"
+            "多重実行等の不具合がないこと。",
+        ],
+        ["", ""],
+        ["確認対象テーブル", "orders（注文）, fcmp_transaction_histories（クレジット履歴） ほか"],
+        ["", ""],
+        ["対象画面・処理（テスト項目1〜3で網羅）", ""],
+    ]
+    for screen, site in ALL_TARGETS:
+        rows.append(["", f"[{site}] {screen}"])
+    rows += [
+        ["", ""],
+        ["対象バッチ", ""],
+        ["", "再オーソリバッチ"],
+        ["", "障害取消実行バッチ（5分毎実行）"],
+        ["", "定期購入バッチ（契約サイト・100件）"],
+    ]
+    for r, row in enumerate(rows, 1):
+        for c, val in enumerate(row, 1):
+            ws.cell(row=r, column=c, value=val)
+    ws.merge_cells("A1:D1")
+    ws["A1"].font = Font(bold=True, size=16)
+    ws["A1"].alignment = CENTER
+    for r in (11, 17, 23, 28):
+        style_header_row(ws, r, 4)
+    set_col_widths(ws, [30, 50, 30, 30])
+    ws.row_dimensions[1].height = 30
+
+
+def build_ramp_sheet(wb):
+    ws = wb.create_sheet("段階的負荷テスト方針")
+    rows = [
+        ["段階的負荷テスト方針（テスト項目1〜3）", ""],
+        ["", ""],
+        ["項目", "内容"],
+        ["対象", "1.画面表示の秒数 / 2.同時操作の正常終了 / 3.大量データの正常終了"],
+        ["対象画面・処理", "全11画面・処理を各テスト区分で網羅（下表参照）"],
+        ["実施方法", "手動。同時人数を1人→2人→3人…→10人と段階的に増加"],
+        ["負荷ツール", "なし（手動テストのみ）"],
+        ["サイトプロセス数", f"{PROCESS_COUNT}"],
+        ["", ""],
+        ["レスポンス時間の判定基準（テスト項目1）", ""],
+        ["同時1〜2人", "画面描画完了まで3秒以内"],
+        [
+            "同時3人〜10人",
+            "プロセス数(2)を超えるため待ち発生は想定内。"
+            "3秒超過を許容。人数増加に伴い緩やかに遅延が増加すること（急激な劣化・タイムアウトはNG）",
+        ],
+        ["", ""],
+        ["テスト区分", "各段階での確認内容", "記録欄"],
+        [
+            "1. 画面表示の秒数",
+            "同時1-2人: 3秒以内 / 同時3-10人: 秒数を記録し緩やかな遅延増加を確認",
+            "詳細シートの「同時N人」列に秒数（s）を記録",
+        ],
+        [
+            "2. 同時操作の正常終了",
+            "fcmp_transaction_histories・フライト処理が正常完了か",
+            "詳細シートの「同時N人」列にOK/NGを記録",
+        ],
+        [
+            "3. 大量データの正常終了",
+            "90商品/注文（9サプライヤー×10商品）で正常完了か",
+            "詳細シートの「同時N人」列にOK/NGを記録",
+        ],
+        ["", ""],
+        ["大量データの注文条件（テスト項目3）", ""],
+        ["サプライヤー数", "9（1注文あたり）"],
+        ["1サプライヤーあたりの商品数", "10"],
+        ["1注文あたりの合計商品数", "90"],
+        ["負荷のかけ方", "手動で同時ユーザー数を1→2→3…と段階的に増加"],
+        ["", ""],
+        ["対象画面・処理一覧（各区分で全件実施）", "サイト"],
+    ]
+    for screen, site in ALL_TARGETS:
+        rows.append([screen, site])
+    rows += [
+        ["", ""],
+        ["バッチ一発実行テスト（テスト項目4）", ""],
+        ["実施方法", "100注文を用意し、対象バッチを1回実行。段階的負荷は行わない。"],
+        ["スタブ", "フライト決済センター呼び出しをスタブで代替（テストサイトの制約）"],
+        ["確認内容", "バッチ正常終了 / 全件処理 / 多重実行なし"],
+    ]
+    for r, row in enumerate(rows, 1):
+        for c, val in enumerate(row, 1):
+            ws.cell(row=r, column=c, value=val)
+    ws.merge_cells("A1:C1")
+    ws["A1"].font = Font(bold=True, size=14)
+    style_header_row(ws, 3, 2)
+    style_header_row(ws, 9, 2)
+    style_header_row(ws, 12, 3)
+    style_header_row(ws, 20, 2)
+    style_header_row(ws, 23, 2)
+    style_header_row(ws, 29, 2)
+    set_col_widths(ws, [30, 52, 28])
+
+
+def build_summary(wb):
+    ws = wb.create_sheet("テストケース一覧")
+    headers = [
+        "テストID", "テスト区分", "実施方法", "対象画面/処理", "サイト",
+        "確認ポイント", "段階的負荷", "優先度", "結果", "実施者", "実施日", "備考",
+    ]
+    cases = []
+    pid = 1
+
+    for screen, site in ALL_TARGETS:
+        cases.append((
+            f"PT-{pid:03d}", "1.画面表示", "手動・段階(1→10人)", screen, site,
+            RESPONSE_CRITERIA_SHORT + " / 3人以降緩やかな遅延", "1〜10人", "高", "", "", "", "",
+        ))
+        pid += 1
+
+    for screen, site in ALL_TARGETS:
+        point = "DB・フライト処理が正常完了"
+        cases.append((
+            f"PT-{pid:03d}", "2.同時操作", "手動・段階(1→10人)", screen, site,
+            point, "1〜10人", "高", "", "", "", "",
+        ))
+        pid += 1
+
+    for screen, site in ALL_TARGETS:
+        cases.append((
+            f"PT-{pid:03d}", "3.大量データ", "手動・段階(1→10人)", screen, site,
+            "90商品/注文で正常完了", "1〜10人", "高", "", "", "",
+            "9サプライヤー×10商品=90商品",
+        ))
+        pid += 1
+
+    for batch, site, note in [
+        ("再オーソリバッチ", "バッチ", "100注文・スタブ・一発実行"),
+        ("障害取消実行バッチ（5分毎）", "バッチ", "100注文・スタブ・一発実行・5分超過時確認"),
+        ("定期購入バッチ", "契約サイト", "100件・契約サイトで実施"),
+    ]:
+        cases.append((
+            f"PT-{pid:03d}", "4.バッチ", "100注文+スタブ一発実行", batch, site,
+            "バッチ正常終了・全件処理", "—", "高", "", "", "", note,
+        ))
+        pid += 1
+
+    for c, h in enumerate(headers, 1):
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws, 1, len(headers))
+    for r, case in enumerate(cases, 2):
+        for c, val in enumerate(case, 1):
+            cell = ws.cell(row=r, column=c, value=val)
+            if c == 3:
+                cell.fill = MANUAL_FILL if "手動" in str(val) else STUB_FILL
+    style_data_area(ws, 2, len(cases) + 1, len(headers))
+    set_col_widths(ws, [10, 14, 18, 34, 10, 28, 10, 8, 8, 10, 12, 26])
+    ws.freeze_panes = "A2"
+
+
+def build_detail_sheet(wb, title, section_no, method, pass_criteria, cases, value_hint=""):
+    ws = wb.create_sheet(title)
+    base_headers = [
+        "テストID", "対象画面/処理", "サイト", "前提条件", "テスト手順",
+        "期待結果", "合格基準", "実施方法",
+    ]
+    tail_headers = ["総合判定", "実施日", "備考"]
+    headers = base_headers + RAMP_COLS + tail_headers
+
+    ws.cell(row=1, column=1, value=f"テスト項目{section_no}")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A1"].alignment = CENTER
+
+    ws.cell(row=2, column=1, value="実施方法")
+    ws.cell(row=2, column=2, value=method)
+    ws.cell(row=3, column=1, value="合格基準")
+    ws.cell(row=3, column=2, value=pass_criteria)
+    merge_end = 3
+    if value_hint:
+        ws.cell(row=4, column=1, value="記録方法")
+        ws.cell(row=4, column=2, value=value_hint)
+        merge_end = 4
+    ws.merge_cells(start_row=2, start_column=2, end_row=merge_end, end_column=len(headers))
+    ws.merge_cells(start_row=3, start_column=2, end_row=merge_end, end_column=len(headers))
+    if value_hint:
+        ws.merge_cells(start_row=4, start_column=2, end_row=merge_end, end_column=len(headers))
+
+    header_row = merge_end + 2
+    for c, h in enumerate(headers, 1):
+        ws.cell(row=header_row, column=c, value=h)
+    style_header_row(ws, header_row, len(headers))
+
+    data_start = header_row + 1
+    for r, case in enumerate(cases, data_start):
+        for c, val in enumerate(case, 1):
+            ws.cell(row=r, column=c, value=val)
+
+    style_data_area(ws, data_start, data_start + len(cases) - 1, len(headers))
+    set_col_widths(ws, [10, 30, 8, 28, 38, 28, 14, 14] + [9] * 10 + [10, 12, 20])
+    ws.freeze_panes = f"A{data_start}"
+
+
+def build_batch_detail_sheet(wb, cases):
+    ws = wb.create_sheet("4_バッチ処理の大量データ")
+    headers = [
+        "テストID", "対象バッチ", "サイト", "前提条件", "テスト手順",
+        "期待結果", "合格基準", "実施方法",
+        "バッチ実行結果", "処理件数", "所要時間", "多重実行",
+        "スタブ応答", "総合判定", "実施日", "備考",
+    ]
+    ws.cell(row=1, column=1, value="テスト項目4")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A1"].alignment = CENTER
+
+    info = [
+        ("実施方法", "100注文分の処理対象データを事前に用意し、フライト決済センタースタブを有効化したうえで、対象バッチを1回実行する。"),
+        ("合格基準", "バッチが正常終了すること。全100注文（件）が処理されること。多重実行等の不具合がないこと。"),
+        ("スタブ", BATCH_STUB_NOTE),
+        ("記録方法", "バッチ実行結果・処理件数・所要時間・多重実行の有無・スタブ応答を記録"),
+    ]
+    for i, (label, text) in enumerate(info, 2):
+        ws.cell(row=i, column=1, value=label)
+        ws.cell(row=i, column=2, value=text)
+        ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=len(headers))
+
+    header_row = len(info) + 3
+    for c, h in enumerate(headers, 1):
+        ws.cell(row=header_row, column=c, value=h)
+    style_header_row(ws, header_row, len(headers))
+
+    data_start = header_row + 1
+    for r, case in enumerate(cases, data_start):
+        for c, val in enumerate(case, 1):
+            ws.cell(row=r, column=c, value=val)
+
+    style_data_area(ws, data_start, data_start + len(cases) - 1, len(headers))
+    set_col_widths(ws, [10, 28, 10, 30, 36, 26, 16, 16, 12, 10, 10, 10, 12, 10, 12, 22])
+    ws.freeze_panes = f"A{data_start}"
+
+
+def _precondition(screen, site, test_type):
+    """Return precondition text for a screen."""
+    base = "テスト用アカウントでログイン済み。" if site == "フロント" else "管理サイトにログイン済み。"
+    extras = {
+        "クレジットカード一覧": "クレジットカードが1件以上登録済み。",
+        "クレジットカード登録画面（フライト決済センター）": "",
+        "クレジットカード登録画面からの戻り": "クレジットカード登録画面表示中、または登録完了後。",
+        "クレジットカード削除": "削除対象のクレジットカードが登録済み。",
+        "クレカ使用での購入": "購入可能な商品・クレジットカードを用意。",
+        "クレカ使用での見積購入": "見積購入可能な条件・クレジットカードを用意。",
+        "お支払方法選択画面": "商品がカートに入っている。",
+        "見積購入でのお支払方法選択画面": "見積購入フロー中。",
+        "出荷処理": "出荷対象の注文を用意。",
+        "注文変更処理": "変更対象の注文を用意。",
+        "注文キャンセル処理": "キャンセル対象の注文を用意。",
+    }
+    pre = base + extras.get(screen, "")
+    if test_type == "concurrent":
+        pre += "テスト用アカウント/注文を人数分用意。"
+    if test_type == "large":
+        pre = LARGE_DATA_PRECONDITION + pre
+    return pre
+
+
+def _display_steps(screen, site):
+    ramp = "3. 同時人数を1→2→3…と増やし、各段階で計測"
+    if screen == "クレカ使用での購入":
+        return (
+            "1. クレカ使用での購入フローを開始\n"
+            "2. 購入確定/決済画面の描画完了までの秒数を計測（s）\n" + ramp
+        )
+    if screen == "クレカ使用での見積購入":
+        return (
+            "1. クレカ使用での見積購入フローを開始\n"
+            "2. 見積購入確定/決済画面の描画完了までの秒数を計測（s）\n" + ramp
+        )
+    if site == "管理":
+        return (
+            f"1. {screen}画面へ遷移\n"
+            "2. 画面描画完了までの秒数を計測（s）\n" + ramp
+        )
+    return (
+        f"1. {screen}へ遷移する操作を実施\n"
+        "2. 画面描画完了までの秒数を計測（s）\n" + ramp
+    )
+
+
+def _concurrent_steps(screen, site):
+    ramp = "4. 人数を1→2→3…と増やして繰り返す"
+    steps_map = {
+        "クレジットカード一覧": (
+            "1. 指定人数が同時にクレジットカード一覧画面へ遷移\n"
+            "2. 一覧表示が正常完了することを確認\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面（フライト決済センター）": (
+            "1. 指定人数が同時にクレジットカード登録を実行\n"
+            "2. フライト決済センターで登録完了\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面からの戻り": (
+            "1. 指定人数が同時に登録画面から戻る操作を実行\n"
+            "2. 戻り先画面が正常表示されることを確認\n3. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード削除": (
+            "1. 指定人数が同時にクレジットカード削除を実行\n"
+            "2. fcmp_transaction_historiesを確認\n3. 削除が正常完了することを確認\n" + ramp
+        ),
+        "クレカ使用での購入": (
+            "1. 指定人数が同時にクレカ購入を実行\n"
+            "2. orders, fcmp_transaction_historiesを確認\n"
+            "3. フライト決済センター処理画面を確認\n" + ramp
+        ),
+        "クレカ使用での見積購入": (
+            "1. 指定人数が同時に見積購入（クレカ）を実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "お支払方法選択画面": (
+            "1. 指定人数が同時にお支払方法選択画面へ遷移・操作\n"
+            "2. orders, fcmp_transaction_historiesを確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "見積購入でのお支払方法選択画面": (
+            "1. 指定人数が同時に見積購入の支払方法選択画面へ遷移・操作\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "出荷処理": (
+            "1. 指定人数が同時に出荷処理を実行\n"
+            "2. orders, fcmp_transaction_historiesを確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "注文変更処理": (
+            "1. 指定人数が同時に注文変更を実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+        "注文キャンセル処理": (
+            "1. 指定人数が同時に注文キャンセルを実行\n"
+            "2. 関連テーブル・フライト処理を確認\n3. 正常完了することを確認\n" + ramp
+        ),
+    }
+    return steps_map[screen]
+
+
+def _large_data_steps(screen, site):
+    ramp = "5. 同時人数を1→2→3…と増やして繰り返す"
+    base = "1. 9サプライヤー×10商品=90商品の注文データを作成\n"
+    steps_map = {
+        "クレジットカード一覧": (
+            base + "2. クレジットカード一覧画面へ遷移\n"
+            "3. 画面表示・処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面（フライト決済センター）": (
+            base + "2. クレジットカード登録を実行\n"
+            "3. フライト決済センター処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード登録画面からの戻り": (
+            base + "2. 登録画面から戻る操作を実行\n"
+            "3. 戻り先画面・処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレジットカード削除": (
+            base + "2. クレジットカード削除を実行\n"
+            "3. 削除処理完了を確認\n4. fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "クレカ使用での購入": (
+            base + "2. クレカ購入を実行\n"
+            "3. orders, fcmp_transaction_historiesを確認\n4. フライト決済センター処理を確認\n" + ramp
+        ),
+        "クレカ使用での見積購入": (
+            base + "2. クレカ見積購入を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "お支払方法選択画面": (
+            base + "2. お支払方法選択画面へ遷移\n"
+            "3. 画面表示・処理完了を確認\n4. orders, fcmp_transaction_historiesを確認\n" + ramp
+        ),
+        "見積購入でのお支払方法選択画面": (
+            base + "2. 見積購入の支払方法選択画面へ遷移\n"
+            "3. 処理完了とDBを確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "出荷処理": (
+            base + "2. 出荷処理を実行\n"
+            "3. orders, fcmp_transaction_historiesを確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "注文変更処理": (
+            base + "2. 注文変更処理を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+        "注文キャンセル処理": (
+            base + "2. 注文キャンセル処理を実行\n"
+            "3. 関連テーブル・フライト処理を確認\n4. 正常完了することを確認\n" + ramp
+        ),
+    }
+    return steps_map[screen]
+
+
+def build_pt1(wb):
+    cases = []
+    for i, (screen, site) in enumerate(ALL_TARGETS, 1):
+        cases.append((
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "display"),
+            _display_steps(screen, site),
+            f"{screen}がエラーなく表示される", RESPONSE_CRITERIA_FULL, "手動・段階(1→10人)",
+            *empty_ramp_tail(),
+        ))
+    build_detail_sheet(
+        wb, "1_画面表示の秒数", 1,
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        f"同時操作人数を1人→2人→3人…→10人と段階的に増やし、各画面の表示秒数を計測する。"
+        f"サイトのプロセス数は{PROCESS_COUNT}。",
+        RESPONSE_CRITERIA_FULL,
+        cases,
+        value_hint="「同時1-2人」列: 3秒以内で判定 / 「同時3-10人」列: 秒数を記録し緩やかな遅延増加を確認",
+    )
+
+
+def build_pt2(wb):
+    cases = []
+    for i, (screen, site) in enumerate(ALL_TARGETS, PT2_START):
+        cases.append((
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "concurrent"),
+            _concurrent_steps(screen, site),
+            "全操作が正常完了。DB・フライト処理に異常なし", "全件正常完了", "手動・段階(1→10人)",
+            *empty_ramp_tail(),
+        ))
+    build_detail_sheet(
+        wb, "2_同時操作の正常終了", 2,
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        "同時操作人数を1人→2人→3人…→10人と段階的に増やし、"
+        "fcmp_transaction_historiesおよびフライト決済センター処理の正常完了を確認する。",
+        "fcmp_transaction_historiesおよびフライト決済センター処理が全件正常完了",
+        cases,
+        value_hint="「同時N人」列に各段階の判定（OK/NG）を記録",
+    )
+
+
+def build_pt3(wb):
+    cases = []
+    for i, (screen, site) in enumerate(ALL_TARGETS, PT3_START):
+        cases.append((
+            f"PT-{i:03d}", screen, site,
+            _precondition(screen, site, "large"),
+            _large_data_steps(screen, site),
+            "90商品/注文の大量データ条件下でも正常完了", "エラーなく正常完了", "手動・段階(1→10人)",
+            *empty_ramp_tail(),
+        ))
+    build_detail_sheet(
+        wb, "3_大量データの正常終了", 3,
+        f"手動・段階テスト。全{TARGET_COUNT}画面・処理について、"
+        "1注文あたり9サプライヤー×10商品=90商品の注文データを使用し、"
+        "同時ユーザー数を1人→2人→3人…→10人と段階的に増やして正常完了を確認する。",
+        "orders, fcmp_transaction_histories等およびフライト決済センター処理が正常完了",
+        cases,
+        value_hint="「同時N人」列に各段階の判定（OK/NG）を記録",
+    )
+
+
+def build_pt4(wb):
+    empty_batch_tail = [""] * 8
+
+    cases = [
+        (
+            f"PT-{PT4_START:03d}", "再オーソリバッチ", "バッチ",
+            f"100注文分の再オーソリ対象データをfcmp_transaction_histories等に事前投入。{BATCH_STUB_NOTE}",
+            "1. フライト決済センタースタブを有効化\n"
+            "2. 再オーソリバッチを1回実行\n"
+            "3. fcmp_transaction_historiesの全100注文が処理されたことを確認\n"
+            "4. 多重実行が発生していないことを確認",
+            "100注文すべてが正常処理され、バッチが正常終了", "正常終了・全件処理・多重実行なし",
+            "100注文+スタブ一発実行",
+            *empty_batch_tail,
+        ),
+        (
+            f"PT-{PT4_START + 1:03d}", "障害取消実行バッチ（5分毎）", "バッチ",
+            f"100注文分の障害取消対象データを事前投入。{BATCH_STUB_NOTE}",
+            "1. フライト決済センタースタブを有効化\n"
+            "2. 障害取消実行バッチを1回実行（または次回スケジュール実行を待機）\n"
+            "3. fcmp_transaction_historiesの全対象データが処理されたことを確認\n"
+            "4. 5分を超える場合の挙動を確認",
+            "バッチが正常終了し、全対象データが処理される", "正常終了・全件処理・多重実行なし",
+            "100注文+スタブ一発実行",
+            *([""] * 7 + ["5分以内に終わらない場合の挙動を必ず確認"]),
+        ),
+        (
+            f"PT-{PT4_START + 2:03d}", "定期購入バッチ（契約サイト）", "契約サイト",
+            "契約サイトに100件の定期購入データを事前投入。",
+            "1. 定期購入バッチを1回実行\n2. 100件すべてが正常処理されたことを確認",
+            "100件の定期購入が正常完了", "正常終了・全件処理",
+            "100件一発実行",
+            *([""] * 7 + ["契約サイトで実施"]),
+        ),
+    ]
+    build_batch_detail_sheet(wb, cases)
+
+
+def build_env_sheet(wb):
+    ws = wb.create_sheet("実施環境・ツール")
+    rows = [
+        ["項目", "内容", "記入欄"],
+        ["テスト環境", "STG / 検証環境 等", ""],
+        ["テスト実施期間", "", ""],
+        ["段階テスト（項目1・2・3）", "手動。同時1人→10人を段階的に実施（最大10名）", ""],
+        ["バッチテスト（項目4）", "100注文を用意し、バッチを1回実行。スタブ利用", ""],
+        ["負荷テストツール", "使用しない（手動テストのみ）", ""],
+        ["サイトプロセス数", f"{PROCESS_COUNT}", ""],
+        ["レスポンス基準（項目1）", RESPONSE_CRITERIA_FULL, ""],
+        ["データ投入方法", "SQL / API / 手動セットアップ 等", ""],
+        ["大量データ条件（項目3）", "1注文: 9サプライヤー × 10商品 = 90商品", ""],
+        ["スタブ設定", "スタブのURL・切替方法・担当者（項目4で必須）", ""],
+        ["監視対象", "APサーバ CPU/メモリ、DB、バッチログ", ""],
+        ["ログ確認先", "アプリログ、バッチログ、スタブログ", ""],
+        ["テストデータ準備担当", "", ""],
+        ["障害時エスカレーション", "", ""],
+    ]
+    for r, row in enumerate(rows, 1):
+        for c, val in enumerate(row, 1):
+            ws.cell(row=r, column=c, value=val)
+    style_header_row(ws, 1, 3)
+    style_data_area(ws, 2, len(rows), 3)
+    set_col_widths(ws, [26, 48, 30])
+
+
+def main():
+    wb = Workbook()
+    build_overview(wb)
+    build_ramp_sheet(wb)
+    build_summary(wb)
+    build_pt1(wb)
+    build_pt2(wb)
+    build_pt3(wb)
+    build_pt4(wb)
+    build_env_sheet(wb)
+    wb.save(OUTPUT_PATH)
+    print(f"Generated: {OUTPUT_PATH}")
+
+
+if __name__ == "__main__":
+    main()

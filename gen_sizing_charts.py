@@ -220,39 +220,31 @@ text(ax, 0.45, 1.22, "この同時アクセスは「注文した人が滞在10�
 text(ax, 0.45, 0.68, "Webの接続・メモリは同時アクセス側。在庫ロック・採番の排他は同時セッション側。", size=11, color=NAVY)
 save(fig, "/workspace/同時アクセス算定_積み上げ.png")
 
-# --- 4. 根拠表 (両指標) ---
+# --- 4. 依頼どおりの表: 月/日/時 + 同時アクセス + 同時セッション ---
 growths = [1.0, 1.2, 1.5, 2.0]
 labels = ["現状", "1.2倍", "1.5倍", "2倍"]
-fig, ax = plt.subplots(figsize=(14.2, 7.6))
-ax.set_xlim(0, 14.2)
-ax.set_ylim(0, 7.6)
+fig, ax = plt.subplots(figsize=(13.6, 8.15))
+ax.set_xlim(0, 13.6)
+ax.set_ylim(0, 8.15)
 ax.axis("off")
-ax.add_patch(Rectangle((0, 7.22), 0.14, 0.28, color=TEAL))
-text(ax, 0.28, 7.35, "ピーク基準サイジング (営業日30日)  同時アクセスと同時セッションを分離", size=14.5, color=NAVY)
-text(ax, 0.28, 6.98, "日集中率2.0 / 時間集中率2.5 / 滞在10分 / 当該処理2秒 / 秒バースト3.0 / 安全率1.5", size=10, color=GRAY)
+ax.add_patch(Rectangle((0, 7.75), 0.14, 0.28, color=TEAL))
+text(ax, 0.28, 7.88, "ピーク基準サイジング (営業日30日)", size=16, color=NAVY)
+text(ax, 0.28, 7.48, "日集中率2.0 / 時間集中率2.5 / 同時アクセス=滞在10分x安全率1.5 / 同時セッション=処理2秒xバースト3x安全率1.5", size=9.5, color=GRAY)
 
-headers = [
-    (0.25, 1.35, "成長\n倍率"),
-    (1.70, 1.55, "ピーク月\n(件/月)"),
-    (3.35, 1.55, "ピーク時\n(件/時間)"),
-    (5.05, 1.85, "同時アクセス\n平均"),
-    (7.00, 1.85, "同時アクセス\n設計"),
-    (8.95, 1.85, "同時セッション\n平均"),
-    (11.05, 1.85, "同時セッション\n設計"),
-]
-# table geometry
-x0, y0, tw, th = 0.2, 1.55, 13.8, 5.05
-ax.add_patch(FancyBboxPatch((x0, y0), tw, th, boxstyle="round,pad=0.01,rounding_size=0.04", facecolor="white", edgecolor=LINE, lw=0.8))
+x0, y0, tw, th = 0.22, 2.35, 13.16, 4.85
+ax.add_patch(Rectangle((x0, y0), tw, th, facecolor="white", edgecolor=LINE, lw=0.8))
 
-cols = [0.2, 1.55, 3.25, 4.95, 6.9, 8.85, 10.95, 14.0]
+# 成長 / ピーク月 / ピーク日 / ピーク時 / 同時アクセス / 同時セッション
+cols = [0.22, 1.85, 4.05, 6.25, 8.45, 10.75, 13.38]
 header_h = 0.95
 row_h = (th - header_h) / 4
-# header
 ax.add_patch(Rectangle((x0, y0 + th - header_h), tw, header_h, color=BLUE, linewidth=0))
-heads = ["成長倍率", "ピーク月\n(件/月)", "ピーク時\n(件/時間)", "同時アクセス\n平均", "同時アクセス\n設計", "同時セッション\n平均", "同時セッション\n設計"]
+# 同時セッション列だけヘッダーをティールに
+ax.add_patch(Rectangle((cols[5], y0 + th - header_h), cols[6] - cols[5], header_h, color=TEAL_DK, linewidth=0))
+heads = ["成長倍率", "ピーク月\n(件/月)", "ピーク日\n(件/日)", "ピーク時\n(件/時)", "同時アクセス", "同時セッション"]
 for i, h in enumerate(heads):
     cx = (cols[i] + cols[i + 1]) / 2
-    text(ax, cx, y0 + th - header_h / 2, h, size=10, color="white", ha="center")
+    text(ax, cx, y0 + th - header_h / 2, h, size=11, color="white", ha="center")
 
 for r, (lab, g) in enumerate(zip(labels, growths)):
     m = metrics(g)
@@ -261,32 +253,47 @@ for r, (lab, g) in enumerate(zip(labels, growths)):
         ax.add_patch(Rectangle((x0, y), tw, row_h, facecolor="#FFF4D6", edgecolor="none"))
     elif r % 2 == 1:
         ax.add_patch(Rectangle((x0, y), tw, row_h, facecolor="#F4F7FB", edgecolor="none"))
+    ax.add_patch(Rectangle((cols[5], y), cols[6] - cols[5], row_h, facecolor="#D8F0EC" if g != 2.0 else "#C8EBDF", edgecolor="none"))
     vals = [
         lab,
         f"{m['month']:,.0f}",
+        f"{m['peak_day']:,.0f}",
         f"{m['peak_h']:,.0f}",
-        f"{m['acc_avg']:.0f}",
-        str(m["acc_design"]),
-        f"{m['sess_avg']:.1f}",
+        f"{m['acc_design']:,}",
         str(m["sess_design"]),
     ]
-    colors = [NAVY, NAVY, NAVY, BLUE, BLUE_DK, TEAL_DK, TEAL_DK]
-    for i, (v, c) in enumerate(zip(vals, colors)):
+    colors = [NAVY, NAVY, NAVY, NAVY, BLUE_DK, TEAL_DK]
+    sizes = [13, 13, 13, 13, 14, 18]
+    for i, (v, c, sz) in enumerate(zip(vals, colors, sizes)):
         cx = (cols[i] + cols[i + 1]) / 2
-        sz = 13 if i >= 3 else 12
         text(ax, cx, y + row_h / 2, v, size=sz, color=c, ha="center")
     if g == 2.0:
-        ax.add_patch(Rectangle((x0, y), tw, row_h, fill=False, edgecolor=RED, linewidth=1.6))
+        ax.add_patch(Rectangle((x0, y), tw, row_h, fill=False, edgecolor=RED, linewidth=1.8))
 
 for c in cols[1:-1]:
-    ax.plot([c, c], [y0, y0 + th], color="white" if False else LINE, lw=0.6)
+    ax.plot([c, c], [y0, y0 + th], color=LINE, lw=0.7)
+ax.plot([x0, x0 + tw], [y0 + th - header_h, y0 + th - header_h], color="white", lw=0.01)
 
-text(ax, 0.28, 1.22, "※ 同時アクセス = 到着率(件/分) x 滞在10分。Web接続数の目安。未注文の閲覧は含まない。", size=9.5, color=GRAY)
-text(ax, 0.28, 0.86, "※ 同時セッション = 到着率(件/秒) x 当該処理2秒。同じボタンを押している最中に重なる件数 (弊社の同時処理)。", size=9.5, color=GRAY)
-text(ax, 0.28, 0.50, "※ 同時セッション設計 = 平均 x 秒バースト3.0 x 安全率1.5 を切り上げ、下限3。赤枠は2倍成長時。旧「同時セッション8」はここの余裕値。", size=9.5, color=GRAY)
-text(ax, 0.28, 0.18, "※ 同時アクセス設計は百の桁、同時セッション設計は一桁。指標を混ぜるとサイジングが破綻する。", size=9.5, color=RED)
+ax.add_patch(
+    FancyBboxPatch(
+        (0.22, 0.22),
+        13.16,
+        1.95,
+        boxstyle="round,pad=0.02,rounding_size=0.07",
+        facecolor="#E6F4F2",
+        edgecolor=TEAL_DK,
+        linewidth=1.8,
+    )
+)
+text(ax, 6.8, 1.72, "結論  同時セッションは 4 で足りる", size=18, color=TEAL_DK, ha="center")
+text(ax, 6.8, 1.18, "現状から1.5倍までは3。2倍成長まで見ても最大4。旧提案の8は余裕値であり、採用は4。", size=12, color=NAVY, ha="center")
+text(ax, 6.8, 0.68, "同時アクセスは閲覧人数 (現状153 / 2倍で305)。同時セッションは同時処理。混ぜない。ピーク時は件/時。", size=10.5, color=GRAY, ha="center")
 
-save(fig, "/workspace/サイジング根拠_ピーク基準.png")
+fig.savefig("/workspace/サイジング根拠_ピーク基準.png", dpi=160, bbox_inches="tight", facecolor="white")
+fig.savefig("/workspace/サイジング表_同時セッション4.png", dpi=160, bbox_inches="tight", facecolor="white")
+plt.close(fig)
+print("wrote /workspace/サイジング根拠_ピーク基準.png")
+print("wrote /workspace/サイジング表_同時セッション4.png")
 
 print("current", metrics(1.0))
 print("x2", metrics(2.0))

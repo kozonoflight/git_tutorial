@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1000" viewBox="0 0 1700 1000">
+<rect width="1700" height="1000" fill="#fff"/>
+<rect x="26" y="20" width="10" height="52" fill="#00A693"/>
+<text x="52" y="58" font-family="WenQuanYi Micro Hei, sans-serif" font-size="32" font-weight="bold" fill="#333333">要件定義の進め方</text>
+<text x="54" y="88" font-family="WenQuanYi Micro Hei, sans-serif" font-size="15" fill="#666666">「材料（Input）を集める → 打合せで検討する → 資料が完成する（Output）」を4回くり返し、最後に開発のご提案を行います</text>
+<text x="300" y="122" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="16" font-weight="bold" fill="#E67E22">Input（材料）</text>
+<text x="855" y="122" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="16" font-weight="bold" fill="#007A6E">工程でやること</text>
+<text x="1420" y="122" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="16" font-weight="bold" fill="#2E7D32">Output（できあがる資料）</text>
+<rect x="45" y="140" width="510" height="142" rx="14" fill="#FFF3E8" stroke="#E67E22" stroke-width="2"/>
+<text x="61" y="170" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・基幹インターフェイス一覧・詳細（各項目の説明）</text>
+<text x="61" y="191" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・　商品／在庫／注文（受注受付・納期回答・</text>
+<text x="61" y="212" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・　与信確認・出荷実績・キャンセル・返品 等）</text>
+<line x1="559" y1="211.0" x2="595" y2="211.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="595,211.0 582,203.0 582,219.0" fill="#00A693"/>
+<rect x="600" y="140" width="510" height="142" rx="16" fill="#DFF4F1" stroke="#00A693" stroke-width="2.5"/>
+<text x="855" y="174" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="18" font-weight="bold" fill="#007A6E">1. 基幹システムの仕様の整理</text>
+<text x="855" y="196" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" font-weight="bold" fill="#E67E22">【ローリングスジャパン様】</text>
+<text x="855" y="220" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">貴社にて基幹仕様を整理し、</text>
+<text x="855" y="239" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">弊社へご提供いただきます</text>
+<line x1="1114" y1="211.0" x2="1150" y2="211.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="1150,211.0 1137,203.0 1137,219.0" fill="#00A693"/>
+<rect x="1155" y="140" width="510" height="142" rx="14" fill="#E9F5EA" stroke="#2E7D32" stroke-width="2"/>
+<text x="1171" y="170" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13.5" fill="#333333">・基幹システム仕様（連携インターフェイス）</text>
+<rect x="45" y="294" width="510" height="142" rx="14" fill="#FFF3E8" stroke="#E67E22" stroke-width="2"/>
+<text x="61" y="324" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・①の基幹システム仕様</text>
+<text x="61" y="345" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・EDI関係の資料</text>
+<text x="61" y="366" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・Excel等システム外で管理しているデータ</text>
+<text x="61" y="387" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・帳票類</text>
+<line x1="559" y1="365.0" x2="595" y2="365.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="595,365.0 582,357.0 582,373.0" fill="#00A693"/>
+<rect x="600" y="294" width="510" height="142" rx="16" fill="#DFF4F1" stroke="#00A693" stroke-width="2.5"/>
+<text x="855" y="328" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="18" font-weight="bold" fill="#007A6E">2. システム化する業務の整理</text>
+<text x="855" y="350" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" font-weight="bold" fill="#007A6E">【弊社作成 → 打合せで完成】</text>
+<text x="855" y="374" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">まず弊社が「概略フロー（案）」を作成。</text>
+<text x="855" y="393" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">打合せで確認・修正します</text>
+<line x1="1114" y1="365.0" x2="1150" y2="365.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="1150,365.0 1137,357.0 1137,373.0" fill="#00A693"/>
+<rect x="1155" y="294" width="510" height="142" rx="14" fill="#E9F5EA" stroke="#2E7D32" stroke-width="2"/>
+<text x="1171" y="324" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13.5" fill="#333333">・要件定義書_概略フロー（完成）</text>
+<rect x="45" y="448" width="510" height="142" rx="14" fill="#FFF3E8" stroke="#E67E22" stroke-width="2"/>
+<text x="61" y="478" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・完成した概略フロー</text>
+<text x="61" y="499" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・ヒアリング内容</text>
+<line x1="559" y1="519.0" x2="595" y2="519.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="595,519.0 582,511.0 582,527.0" fill="#00A693"/>
+<rect x="600" y="448" width="510" height="142" rx="16" fill="#DFF4F1" stroke="#00A693" stroke-width="2.5"/>
+<text x="855" y="482" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="18" font-weight="bold" fill="#007A6E">3. 画面UIの検討</text>
+<text x="855" y="504" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" font-weight="bold" fill="#007A6E">【弊社作成 → 打合せで完成】</text>
+<text x="855" y="528" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">弊社が「画面機能設計書（案）」</text>
+<text x="855" y="547" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">「機能詳細設計書（案）」を作成。</text>
+<text x="855" y="566" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">打合せでUIを確認・修正します</text>
+<line x1="1114" y1="519.0" x2="1150" y2="519.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="1150,519.0 1137,511.0 1137,527.0" fill="#00A693"/>
+<rect x="1155" y="448" width="510" height="142" rx="14" fill="#E9F5EA" stroke="#2E7D32" stroke-width="2"/>
+<text x="1171" y="478" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13.5" fill="#333333">・要件定義書_画面機能設計書（完成）</text>
+<text x="1171" y="499" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13.5" fill="#333333">・要件定義書_機能詳細設計書（完成）</text>
+<rect x="45" y="602" width="510" height="142" rx="14" fill="#FFF3E8" stroke="#E67E22" stroke-width="2"/>
+<text x="61" y="632" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・これまでのヒアリング内容</text>
+<text x="61" y="653" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・不足分としてご提供いただく情報</text>
+<text x="61" y="674" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13" fill="#333333">・（注文数・ピーク時間帯・取引先数 等）</text>
+<line x1="559" y1="673.0" x2="595" y2="673.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="595,673.0 582,665.0 582,681.0" fill="#00A693"/>
+<rect x="600" y="602" width="510" height="142" rx="16" fill="#DFF4F1" stroke="#00A693" stroke-width="2.5"/>
+<text x="855" y="636" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="18" font-weight="bold" fill="#007A6E">4. 非機能要件の検討</text>
+<text x="855" y="658" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" font-weight="bold" fill="#007A6E">【弊社作成 → 打合せで完成】</text>
+<text x="855" y="682" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">弊社が「非機能要件（案）」を作成。</text>
+<text x="855" y="701" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="12.5" fill="#333333">打合せで確認・修正します</text>
+<line x1="1114" y1="673.0" x2="1150" y2="673.0" stroke="#00A693" stroke-width="4"/>
+<polygon points="1150,673.0 1137,665.0 1137,681.0" fill="#00A693"/>
+<rect x="1155" y="602" width="510" height="142" rx="14" fill="#E9F5EA" stroke="#2E7D32" stroke-width="2"/>
+<text x="1171" y="632" font-family="WenQuanYi Micro Hei, sans-serif" font-size="13.5" fill="#333333">・要件定義書_非機能要件（完成）</text>
+<rect x="45" y="762" width="1620" height="112" rx="16" fill="#00A693" stroke="#007A6E" stroke-width="2"/>
+<text x="855" y="807" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="18" font-weight="bold" fill="#fff">5. 開発工程のご提案　― 完成した4つの資料をもとに、開発範囲・工程・正式お見積りをご提示します</text>
+<text x="855" y="842" text-anchor="middle" font-family="WenQuanYi Micro Hei, sans-serif" font-size="14" fill="#fff">要件定義書_概略フロー　／　要件定義書_画面機能設計書　／　要件定義書_機能詳細設計書（連携インターフェイスを含む）　／　要件定義書_非機能要件</text>
+</svg>

@@ -335,5 +335,78 @@ text(ax, 6.7, 0.55, "同時アクセス自体が4になることはない。4は
 
 save(fig, "/workspace/なぜ153対3か_セッション4のライン.png")
 
+# --- 6. 均等割り vs ピーク集中 ---
+fig, ax = plt.subplots(figsize=(13.5, 8.35))
+ax.set_xlim(0, 13.5)
+ax.set_ylim(0, 8.35)
+ax.axis("off")
+ax.add_patch(Rectangle((0, 7.92), 0.14, 0.28, color=TEAL))
+text(ax, 0.28, 8.05, "均等割りとピーク集中、1.82は何の数字か", size=15.5, color=NAVY)
+text(ax, 0.28, 7.62, "29,232 / 30日 = 974.4件/日 (874.4ではない)。1.82件は同時人数ではなく、1分あたりの到着率。", size=10.5, color=GRAY)
+
+# three columns
+cols_data = [
+    {
+        "x": 0.22,
+        "title": "いただいた計算",
+        "color": ORANGE,
+        "fill": "#FFF4EC",
+        "rows": [
+            ("29,232 / 30", "874.4 件/日"),
+            ("/ 8時間", "109.3 件/時"),
+            ("/ 60分", "1.82 件/分"),
+            ("これを同時アクセス?", "1.82"),
+        ],
+        "note": "29,232÷30 は 974.4。1.82は件/分。",
+    },
+    {
+        "x": 4.58,
+        "title": "均等割り (集中なし)",
+        "color": BLUE,
+        "fill": "#EAF0F6",
+        "rows": [
+            ("29,232 / 30", "974.4 件/日"),
+            ("/ 8時間", "121.8 件/時"),
+            ("/ 60分", "2.03 件/分"),
+            ("x 滞在10分", "同時アクセス 20"),
+        ],
+        "note": "毎日・毎時間が同じならこちら。",
+    },
+    {
+        "x": 8.94,
+        "title": "ピーク集中 (採用)",
+        "color": TEAL_DK,
+        "fill": "#E6F4F2",
+        "rows": [
+            ("x 日集中 2.0", "1,949 件/日"),
+            ("/ 8h x 時間集中 2.5", "609 件/時"),
+            ("/ 60分", "10.2 件/分"),
+            ("x 滞在10分 x1.5", "同時アクセス 153"),
+        ],
+        "note": "締切日とピーク時間帯を見た場合。",
+    },
+]
+for c in cols_data:
+    ax.add_patch(FancyBboxPatch((c["x"], 2.55), 4.14, 4.85, boxstyle="round,pad=0.02,rounding_size=0.08", facecolor=c["fill"], edgecolor=c["color"], lw=1.5))
+    ax.add_patch(Rectangle((c["x"], 6.68), 4.14, 0.72, color=c["color"]))
+    text(ax, c["x"] + 2.07, 7.04, c["title"], size=13, color="white", ha="center")
+    y = 6.35
+    for left, right in c["rows"]:
+        text(ax, c["x"] + 0.18, y, left, size=10, color=GRAY)
+        text(ax, c["x"] + 0.18, y - 0.32, right, size=13, color=NAVY)
+        y -= 0.85
+    text(ax, c["x"] + 2.07, 2.82, c["note"], size=9.5, color=c["color"], ha="center")
+
+ax.add_patch(FancyBboxPatch((0.22, 0.22), 13.06, 2.12, boxstyle="round,pad=0.02,rounding_size=0.07", facecolor="#FFF8EE", edgecolor="#E8C9A0", lw=1.2))
+text(ax, 0.48, 1.92, "ポイント", size=13, color=ORANGE)
+text(ax, 0.48, 1.42, "1.82件/分は「1分間に何件来るか」。同時アクセスは「今画面を開いている人数」なので、滞在時間を掛ける。2.03件/分 x 10分 = 約20人。", size=11, color=NAVY)
+text(ax, 0.48, 0.90, "同時セッション (処理2秒) は均等割りでも 2.03/60 x 2秒 = 0.07件。下限3のまま。ピークを見ても3、2倍で4。", size=11, color=NAVY)
+text(ax, 0.48, 0.42, "日集中2.0・時間集中2.5は仮定。日次・時間帯ログが取れれば均等寄りに下げられる。", size=11, color=GRAY)
+
+save(fig, "/workspace/均等割りとピーク集中の違い.png")
+
 print("current", metrics(1.0))
 print("x2", metrics(2.0))
+print("flat day", PEAK_MONTH / DAYS)
+print("flat hour", PEAK_MONTH / DAYS / HOURS)
+print("flat per min", PEAK_MONTH / DAYS / HOURS / 60)

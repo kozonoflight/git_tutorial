@@ -167,6 +167,9 @@ for row in tbl.rows:
     if row.cells[1].text.strip() == "同時接続利用者数":
         append_line(row.cells[3], "本案件の想定は11.に記載")
         print("  同時接続利用者数の備考に本案件参照を追加")
+    if row.cells[1].text.strip() == "重大障害時の代替手段":
+        append_line(row.cells[3], "日次バックアップのため最大24時間分の戻りが発生")
+        print("  重大障害時の備考に戻り時間を明記")
 
 # ============================================================
 # 3. 2.（参考）SLA: 表現の重複とバックアップ保存期間
@@ -211,6 +214,7 @@ replace_on_slide(slides[5], "補完場所はクラウドサービス内", "保�
 # 6. 6.対応内容一覧（2/2）: 動的リソースの実態を明記
 # ============================================================
 print("== p7 対応内容一覧(2/2) ==")
+replace_on_slide(slides[6], "VulsによるCVEを対象に", "NESSUSによるCVEを対象に", label="p7ツール統一")
 tbl = next(sh.table for sh in slides[6].shapes if sh.has_table)
 for row in tbl.rows:
     req = row.cells[1].text.strip()
@@ -225,7 +229,6 @@ print("== p10 セキュリティ(1/2) ==")
 s = slides[9]
 replace_on_slide(s, "正なアクセスが同一IPアドレス", "不正なアクセスが同一IPアドレス", label="p10不正")
 replace_on_slide(s, "XSS,SSQLインジェクション", "XSS,SQLインジェクション", label="p10SQL")
-replace_on_slide(s, "NESSUS", "Vuls", label="p10ツール統一")
 tbl = [sh.table for sh in s.shapes if sh.has_table][-1]
 RELABEL = {"静的検査": ["脆弱性診断", "（開発完了時）"], "動的検査": ["脆弱性診断", "（システムテスト時）"]}
 for row in tbl.rows:
@@ -236,8 +239,10 @@ for row in tbl.rows:
 
 # ============================================================
 # 8. 11.システム構成（1/3）: 同時アクセスの定義と5年後の再計算
-#    フロント 3,400×1.2=4,080名、3%で123名
-#    管理 25×1.2=30名、同時操作は各担当2名で据え置き8名
+#    5年後は利用者2倍（12.の成長倍率2倍と対応）
+#    フロント 3,400→6,800名、3%で204名
+#    管理 25→50名。同時アクセスは★常時は全員、★随時は2割（最低2名）
+#    合計 リリース時116名 / 5年後230名
 # ============================================================
 print("== p12 システム構成(1/3) ==")
 s = slides[11]
@@ -249,40 +254,54 @@ replace_on_slide(
 )
 replace_on_slide(
     s,
+    "リリース5年後、アクティブユーザ数が20％増加する想定",
+    "リリース5年後、アクティブユーザ数が2倍に増加する想定（12.の成長倍率2倍に対応）",
+    label="p12成長前提",
+)
+replace_on_slide(
+    s,
     "管理サイトの想定同時アクセス（ログイン）数は各担当2名と想定",
-    "管理サイトの想定同時アクセス（ログイン）数は各担当2名と想定（5年後も据え置き）",
+    "管理サイトの想定同時アクセス（ログイン）数は、★常時は全員、★随時は2割（最低2名）と想定",
     label="p12管理前提",
 )
 for shape in s.shapes:
     if shape.has_text_frame and "同時セッション数とは" in shape.text_frame.text:
-        append_line(shape, "※SLA記載の同時接続利用者数100名（最善努力型）に対し、本案件は同時接続150名を目標値として別途調整します。")
+        append_line(shape, "※SLA記載の同時接続利用者数100名（最善努力型）に対し、本案件は5年後230名を目標値として別途調整します。")
         print("  SLAとの差異に関する注記を追加")
         break
 
+# key: (リリース時の同時アクセス, 5年後の利用者数, 5年後の同時アクセス)
+ADMIN = {
+    "営業担当者": ("2名", "20名", "4名"),
+    "サイト管理者": ("2名", "10名", "2名"),
+    "カスタマー": ("6名", "12名", "12名"),
+    "入出庫担当者": ("4名", "8名", "8名"),
+}
 tbl = next(sh.table for sh in s.shapes if sh.has_table)
-ADMIN = {"営業担当者": "12名", "サイト管理者": "6名", "カスタマー": "7名", "入出庫担当者": "5名"}
 for ri, row in enumerate(tbl.rows):
     cells = row.cells
     head = cells[0].text.strip().replace("　", "")
     if "取引先担当者" in head or (head == "小計" and cells[3].text.strip() == "102名"):
-        set_lines(cells[4], ["4,080名"])
-        set_lines(cells[5], ["123名"])
-        print(f"  r{ri} フロント5年後 -> 4,080名 / 123名")
+        set_lines(cells[4], ["6,800名"])
+        set_lines(cells[5], ["204名"])
+        print(f"  r{ri} フロント5年後 -> 6,800名 / 204名")
     elif head == "小計" and cells[3].text.strip() == "8名":
-        set_lines(cells[4], ["30名"])
-        set_lines(cells[5], ["8名"])
-        print(f"  r{ri} 管理小計5年後 -> 30名 / 8名")
+        set_lines(cells[3], ["14名"])
+        set_lines(cells[4], ["50名"])
+        set_lines(cells[5], ["26名"])
+        print(f"  r{ri} 管理小計 -> 14名 / 50名 / 26名")
     elif "【合計】" in head:
-        set_lines(cells[3], ["110名"])
-        set_lines(cells[4], ["4,110名"])
-        set_lines(cells[5], ["131名"])
-        print(f"  r{ri} 合計 -> 110名 / 4,110名 / 131名")
+        set_lines(cells[3], ["116名"])
+        set_lines(cells[4], ["6,850名"])
+        set_lines(cells[5], ["230名"])
+        print(f"  r{ri} 合計 -> 116名 / 6,850名 / 230名")
     else:
-        for key, users in ADMIN.items():
+        for key, (rel_acc, y5_users, y5_acc) in ADMIN.items():
             if key in head:
-                set_lines(cells[4], [users])
-                set_lines(cells[5], ["2名"])
-                print(f"  r{ri} {key}5年後 -> {users} / 2名")
+                set_lines(cells[3], [rel_acc])
+                set_lines(cells[4], [y5_users])
+                set_lines(cells[5], [y5_acc])
+                print(f"  r{ri} {key} -> {rel_acc} / {y5_users} / {y5_acc}")
                 break
 
 # ============================================================
@@ -308,7 +327,8 @@ print("  表頭の換算注記を該当列へ移動")
 NOTE = [
     "※ 営業日30日/月、営業8時間/日で慣らした値。ピーク日・時間帯の偏りは実績がないため考慮しておりません。",
     "　 ピーク1時間1,200件（1分20件）でスペックアップを検討、2,400件（1分40件）が上限となります。",
-    "※ 同時アクセス=分平均×滞在時間10分（注文基準の下限値。採用値は11.の110名／5年後131名）",
+    "※ 成長倍率2倍を5年後の想定とします（11.のアクティブユーザ2倍に対応）。",
+    "※ 同時アクセス=分平均×滞在時間10分（注文基準の下限値。採用値は11.の116名／5年後230名）",
     "※ 同時セッション=秒平均×当該処理3秒（内訳はフロント2、管理2）",
 ]
 for shape in s.shapes:

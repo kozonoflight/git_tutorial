@@ -295,5 +295,45 @@ plt.close(fig)
 print("wrote /workspace/サイジング根拠_ピーク基準.png")
 print("wrote /workspace/サイジング表_同時セッション4.png")
 
+# --- 5. なぜ 153 対 3 か / いつ 4 になるか ---
+fig, ax = plt.subplots(figsize=(13.4, 8.0))
+ax.set_xlim(0, 13.4)
+ax.set_ylim(0, 8.0)
+ax.axis("off")
+ax.add_patch(Rectangle((0, 7.58), 0.14, 0.28, color=TEAL))
+text(ax, 0.28, 7.71, "なぜ同時アクセス153で、同時セッションは3なのか", size=15.5, color=NAVY)
+text(ax, 0.28, 7.32, "同じ到着率でも、数える時間の長さが違う。セッションが4になるのは同時アクセス約300のとき。", size=10.5, color=GRAY)
+
+# left access box
+ax.add_patch(FancyBboxPatch((0.25, 4.55), 6.25, 2.55, boxstyle="round,pad=0.02,rounding_size=0.08", facecolor="#EAF0F6", edgecolor=BLUE, lw=1.5))
+text(ax, 3.38, 6.78, "同時アクセス = 閲覧", size=14, color=BLUE, ha="center")
+text(ax, 0.5, 6.28, "到着率 10.2件/分  x  滞在 10分", size=12, color=NAVY)
+text(ax, 0.5, 5.78, "= 平均 102人が画面を開いている", size=12, color=NAVY)
+text(ax, 0.5, 5.28, "x 安全率 1.5  =  設計 153", size=13, color=BLUE_DK)
+text(ax, 0.5, 4.82, "「10分間、店に居る人数」", size=11, color=GRAY)
+
+# right session box
+ax.add_patch(FancyBboxPatch((6.9, 4.55), 6.25, 2.55, boxstyle="round,pad=0.02,rounding_size=0.08", facecolor="#E6F4F2", edgecolor=TEAL_DK, lw=1.5))
+text(ax, 10.02, 6.78, "同時セッション = 同時処理", size=14, color=TEAL_DK, ha="center")
+text(ax, 7.15, 6.28, "到着率 0.17件/秒  x  処理 2秒", size=12, color=NAVY)
+text(ax, 7.15, 5.78, "= 平均 0.34件が処理中", size=12, color=NAVY)
+text(ax, 7.15, 5.28, "x バースト3 x 安全率1.5  =  1.5", size=13, color=TEAL_DK)
+text(ax, 7.15, 4.82, "切り上げし下限3を置くので 設計 3", size=11, color=GRAY)
+
+# ratio bar
+ax.add_patch(FancyBboxPatch((0.25, 3.35), 12.9, 0.95, boxstyle="round,pad=0.02,rounding_size=0.06", facecolor="#FFF8EE", edgecolor="#E8C9A0", lw=1.1))
+text(ax, 6.7, 3.95, "滞在10分 = 600秒。処理は2秒。時間の長さが 300倍 違う。", size=13, color=NAVY, ha="center")
+text(ax, 6.7, 3.55, "だから平均人数も約300倍 (102 対 0.34)。153と3は別物を数えている。", size=12, color=GRAY, ha="center")
+
+# threshold
+ax.add_patch(FancyBboxPatch((0.25, 0.28), 12.9, 2.85, boxstyle="round,pad=0.02,rounding_size=0.08", facecolor="#E6F4F2", edgecolor=TEAL_DK, lw=1.6))
+text(ax, 6.7, 2.72, "同時セッションが 4 になるライン", size=15, color=TEAL_DK, ha="center")
+text(ax, 6.7, 2.18, "設計式: 切り上げ(平均 x 4.5) が 4 を超える  =  平均が 0.67件 を超えたとき", size=11.5, color=NAVY, ha="center")
+text(ax, 6.7, 1.62, "ピーク時 約1,201件/時   /   同時アクセス平均 約200   /   同時アクセス設計 約300", size=13, color=NAVY, ha="center")
+text(ax, 6.7, 1.08, "現状153ではまだ半分。2倍 (同時アクセス305) で初めてセッション4。", size=12, color=NAVY, ha="center")
+text(ax, 6.7, 0.55, "同時アクセス自体が4になることはない。4は同時処理側の話。", size=11, color=GRAY, ha="center")
+
+save(fig, "/workspace/なぜ153対3か_セッション4のライン.png")
+
 print("current", metrics(1.0))
 print("x2", metrics(2.0))

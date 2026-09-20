@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>案件人積み・スケジュール俯瞰 2026〜来期</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --line: #2c3845;
+      --text: #e8eef4;
+      --muted: #8b9aab;
+      --rd: #3d8bfd;
+      --dev: #2bb673;
+      --unassigned: #c4a35a;
+      --danger: #e85d5d;
+      --warn: #e6a23c;
+      --ok: #3cb371;
+      --kawate: #7c9cff;
+      --kozono: #5ec8c8;
+      --kimura: #b07cff;
+      --morisaki: #ff8f6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans JP", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2a3d 0%, transparent 50%),
+                  radial-gradient(900px 500px at 100% 0%, #1a2e28 0%, transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 28px 24px 60px;
+    }
+    h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      letter-spacing: 0.02em;
+    }
+    .sub {
+      color: var(--muted);
+      margin: 0 0 22px;
+      font-size: 0.92rem;
+    }
+    .alerts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .alert {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--danger);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .alert.warn { border-left-color: var(--warn); }
+    .alert.ok { border-left-color: var(--ok); }
+    .alert .label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .alert .value { font-size: 1.05rem; font-weight: 600; }
+    .alert .detail { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px 18px 14px;
+      margin-bottom: 20px;
+    }
+    section h2 {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 14px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+    .legend .rd::before { background: var(--rd); }
+    .legend .dev::before { background: var(--dev); }
+    .legend .dev-u::before { background: var(--unassigned); }
+    .legend .over::before { background: var(--danger); }
+
+    /* Gantt */
+    .gantt-wrap { overflow-x: auto; }
+    .gantt {
+      min-width: 1100px;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      font-size: 0.8rem;
+    }
+    .gantt-head, .gantt-row {
+      display: contents;
+    }
+    .gantt-head .cell, .gantt-row .name, .gantt-row .bars {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+    }
+    .gantt-head .name-h {
+      position: sticky;
+      left: 0;
+      background: var(--panel);
+      z-index: 2;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+    }
+    .months {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      gap: 2px;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.68rem;
+      text-align: center;
+    }
+    .gantt-row .name {
+      position: sticky;
+      left: 0;
+      background: var(--panel);
+      z-index: 1;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    .gantt-row .name small {
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 0.7rem;
+    }
+    .bars {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      gap: 2px;
+      align-items: center;
+      min-height: 44px;
+    }
+    .slot {
+      height: 28px;
+      border-radius: 4px;
+      position: relative;
+      background: transparent;
+    }
+    .bar {
+      position: absolute;
+      inset: 3px 1px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: #0b1220;
+      white-space: nowrap;
+      overflow: hidden;
+      padding: 0 3px;
+    }
+    .bar.rd { background: var(--rd); color: #fff; }
+    .bar.dev { background: var(--dev); color: #04150c; }
+    .bar.dev-u { background: var(--unassigned); color: #1a1408; }
+    .bar.ghost {
+      background: repeating-linear-gradient(
+        -45deg,
+        #3a4552,
+        #3a4552 4px,
+        #2a3340 4px,
+        #2a3340 8px
+      );
+      color: #c5d0db;
+      opacity: 0.85;
+    }
+    .fy-mark {
+      border-left: 2px dashed #445566;
+    }
+
+    /* Heat */
+    .heat {
+      display: grid;
+      grid-template-columns: 100px repeat(12, 1fr);
+      gap: 4px;
+      font-size: 0.72rem;
+      min-width: 900px;
+    }
+    .heat .h, .heat .r {
+      padding: 8px 4px;
+      text-align: center;
+      border-radius: 4px;
+      background: #222b35;
+      color: var(--muted);
+    }
+    .heat .label {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      background: transparent;
+      padding-left: 0;
+    }
+    .heat .cell {
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 500;
+      color: #0d1218;
+    }
+    .c0 { background: #243040; color: var(--muted); }
+    .c1 { background: #3d8bfd88; color: #fff; }
+    .c2 { background: #3d8bfd; color: #fff; }
+    .c3 { background: var(--warn); }
+    .c4 { background: var(--danger); color: #fff; }
+
+    table.assign {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    table.assign th, table.assign td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.assign th { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin: 1px 2px 1px 0;
+    }
+    .tag.kawate { background: #2a3a6a; color: var(--kawate); }
+    .tag.kozono { background: #1d3f42; color: var(--kozono); }
+    .tag.kimura { background: #352455; color: #d2b4ff; }
+    .tag.morisaki { background: #4a2a1f; color: #ffc2ad; }
+    .tag.open { background: #3d3420; color: #f0d78c; }
+    .prio-high { color: var(--danger); font-weight: 700; }
+    .prio-mid { color: var(--warn); font-weight: 600; }
+    .note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .plan-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #141c25;
+    }
+    .plan-card h3 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+      color: var(--kozono);
+    }
+    .plan-card ul {
+      margin: 0;
+      padding-left: 1.1em;
+      font-size: 0.82rem;
+      color: #c5d0db;
+    }
+    @media (max-width: 700px) {
+      body { padding: 16px 12px 40px; }
+      h1 { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>案件人積み・スケジュール俯瞰</h1>
+  <p class="sub">2026年8月〜2027年来期まで／担当の重複と未割当を一目で把握するたたき台（工数は期間均等按分）</p>
+
+  <div class="alerts">
+    <div class="alert">
+      <div class="label">Critical</div>
+      <div class="value">10〜12月が破綻リスク</div>
+      <div class="detail">川手・小園のRDが最大3案件同時（イシダ・三菱・東洋捺染）</div>
+    </div>
+    <div class="alert warn">
+      <div class="label">Watch</div>
+      <div class="value">開発の大半が未割当</div>
+      <div class="detail">開発合計 約112人月。東洋捺染≈40が突出</div>
+    </div>
+    <div class="alert warn">
+      <div class="label">Now</div>
+      <div class="value">8〜9月は成立見込み</div>
+      <div class="detail">ローリングスRD（川手・小園）＋イワタニDev（木村・森崎）</div>
+    </div>
+    <div class="alert ok">
+      <div class="label">Capacity</div>
+      <div class="value">川手＋小園 = 2.0人月/月</div>
+      <div class="detail">10月按分負荷 ≈3.7 → 不足1.7人月</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>1. ガント（要件定義＝青／開発割当済＝緑／開発未割当＝金）</h2>
+    <div class="legend">
+      <span class="rd">要件定義（担当あり）</span>
+      <span class="dev">開発（担当あり）</span>
+      <span class="dev-u">開発（未割当）</span>
+      <span class="over">破線帯＝時期あいまい（来期・未定）</span>
+    </div>
+    <div class="gantt-wrap">
+      <div class="gantt" id="gantt"></div>
+    </div>
+    <p class="note">列は 2026/8〜2027/3（今期後半）＋ 2027/4〜2028/3（来期）の18ヶ月。来期案件は便宜上 来期帯に配置。</p>
+  </section>
+
+  <section>
+    <h2>2. 川手・小園の月次負荷ヒートマップ（要件定義中心）</h2>
+    <div class="gantt-wrap">
+      <div class="heat" id="heat"></div>
+    </div>
+    <p class="note">数値は2名合計の人月/月。緑寄り＝余裕、黄＝逼迫、赤＝キャパ2.0超え。</p>
+  </section>
+
+  <section>
+    <h2>3. 担当アサイン表</h2>
+    <table class="assign" id="assign"></table>
+  </section>
+
+  <section>
+    <h2>4. 人積みの打ち手（たたき台）</h2>
+    <div class="plan-grid">
+      <div class="plan-card">
+        <h3>2026/8〜9</h3>
+        <ul>
+          <li>川手・小園 → ローリングス RD</li>
+          <li>木村・森崎 → イワタニ Dev</li>
+          <li>現状どおり成立</li>
+        </ul>
+      </div>
+      <div class="plan-card">
+        <h3>2026/10〜12（要決断）</h3>
+        <ul>
+          <li>RDは<strong>最大2案件</strong>に制限</li>
+          <li>例: イシダ＋東洋捺染を残し、三菱RDをスライド</li>
+          <li>ローリングスDev・豊商事は別担当必須</li>
+        </ul>
+      </div>
+      <div class="plan-card">
+        <h3>2027/1〜3</h3>
+        <ul>
+          <li>イシダ Dev 4.5人月の担当を明示</li>
+          <li>スライドしたRDの受け皿にする選択肢あり</li>
+        </ul>
+      </div>
+      <div class="plan-card">
+        <h3>来期</h3>
+        <ul>
+          <li>開発を四半期スロット化</li>
+          <li>東洋捺染≈40は専用チーム化を検討</li>
+          <li>高圧ガス／日東／TG の同時発火を避ける</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const months = [
+      "26/8","26/9","26/10","26/11","26/12","27/1","27/2","27/3",
+      "27/4","27/5","27/6","27/7","27/8","27/9","27/10","27/11","27/12","28/1"
+    ];
+    // index: 0=2026/8 ... 7=2027/3, 8=2027/4 ...
+
+    const projects = [
+      { name: "イシダ", note: "FB?", bars: [
+        { type: "rd", start: 2, end: 3, label: "RD 2人月 川手・小園" },
+        { type: "dev-u", start: 5, end: 7, label: "Dev 4.5 未割当" }
+      ]},
+      { name: "ローリングスジャパン", note: "", bars: [
+        { type: "rd", start: 0, end: 1, label: "RD 3 川手・小園" },
+        { type: "dev-u", start: 2, end: 4, label: "Dev 4.4 未割当" }
+      ]},
+      { name: "イワタニ・ケンボロー", note: "", bars: [
+        { type: "dev", start: 0, end: 1, label: "Dev 1.5 木村・森崎" }
+      ]},
+      { name: "豊商事", note: "時期仮", bars: [
+        { type: "dev-u", start: 1, end: 4, label: "Dev ≈6 未割当" }
+      ]},
+      { name: "三菱重工コンプレッサ", note: "FBJ", bars: [
+        { type: "rd", start: 2, end: 4, label: "RD 4 川手・小園" },
+        { type: "ghost", start: 8, end: 17, label: "Dev ≈10 来期・未割当" }
+      ]},
+      { name: "東洋捺染", note: "大型", bars: [
+        { type: "rd", start: 2, end: 4, label: "RD 4 川手・小園" },
+        { type: "ghost", start: 8, end: 17, label: "Dev ≈40 時期不明" }
+      ]},
+      { name: "神鋼商事", note: "今期？", bars: [
+        { type: "ghost", start: 0, end: 7, label: "RD1(川手)+Dev10 未定" }
+      ]},
+      { name: "アムリード", note: "時期不明", bars: [
+        { type: "ghost", start: 0, end: 7, label: "RD3 川手・小園 / Dev1.5" }
+      ]},
+      { name: "高圧ガス工業", note: "FBJ・来期", bars: [
+        { type: "ghost", start: 8, end: 17, label: "RD3 川手・小園 / Dev10" }
+      ]},
+      { name: "日東電工BM", note: "来期", bars: [
+        { type: "ghost", start: 8, end: 17, label: "Dev 8.8 未割当" }
+      ]},
+      { name: "TGソリューションズ", note: "来期", bars: [
+        { type: "ghost", start: 8, end: 17, label: "Dev 8.6 未割当" }
+      ]},
+      { name: "ティー・エー・エス", note: "来期", bars: [
+        { type: "ghost", start: 8, end: 17, label: "Dev ≈5 未割当" }
+      ]},
+      { name: "ニトムズ", note: "来期", bars: [
+        { type: "ghost", start: 8, end: 17, label: "Dev 2.35 未割当" }
+      ]},
+      { name: "アーク", note: "未定", bars: [
+        { type: "ghost", start: 0, end: 17, label: "Dev 0.7 未定" }
+      ]},
+    ];
+
+    function renderGantt() {
+      const root = document.getElementById("gantt");
+      let html = `<div class="gantt-head"><div class="name-h">案件</div><div class="cell"><div class="months">`;
+      months.forEach((m, i) => {
+        html += `<div class="${i === 8 ? "fy-mark" : ""}">${m}</div>`;
+      });
+      html += `</div></div></div>`;
+
+      projects.forEach(p => {
+        html += `<div class="gantt-row"><div class="name">${p.name}<small>${p.note || ""}</small></div><div class="bars">`;
+        for (let i = 0; i < months.length; i++) {
+          const covering = p.bars.filter(b => i >= b.start && i <= b.end);
+          const isStart = p.bars.find(b => b.start === i);
+          html += `<div class="slot ${i === 8 ? "fy-mark" : ""}">`;
+          if (isStart) {
+            const span = isStart.end - isStart.start + 1;
+            html += `<div class="bar ${isStart.type}" style="width: calc(${span * 100}% + ${(span - 1) * 2}px); z-index:1">${isStart.label}</div>`;
+          }
+          html += `</div>`;
+        }
+        html += `</div></div>`;
+      });
+      root.innerHTML = html;
+    }
+
+    // Load: Kawate+Kozono RD only for heat (known months)
+    // 8-9: Rawlings 3MM / 2 months = 1.5
+    // 10-11: Ishida 2/2=1 + MHI 4/3≈1.33 + Toyo 4/3≈1.33 → 3.66
+    // 12: MHI 1.33 + Toyo 1.33 → 2.66
+    const heatMonths = ["8","9","10","11","12","1","2","3","4","5","6","7"];
+    const heatLabels = ["'26/8","'26/9","'26/10","'26/11","'26/12","'27/1","'27/2","'27/3","来期Q1…","","",""];
+    const loads = [1.5, 1.5, 3.7, 3.7, 2.7, 0, 0, 0, null, null, null, null];
+    const loadNote = [
+      "ローリングスRD",
+      "ローリングスRD",
+      "イシダ+三菱+東洋",
+      "イシダ+三菱+東洋",
+      "三菱+東洋",
+      "（開発未割当）",
+      "（開発未割当）",
+      "（開発未割当）",
+      "来期は別途スロット化",
+      "",
+      "",
+      ""
+    ];
+
+    function heatClass(v) {
+      if (v === null) return "c0";
+      if (v === 0) return "c0";
+      if (v <= 1.2) return "c1";
+      if (v <= 2.0) return "c2";
+      if (v <= 3.0) return "c3";
+      return "c4";
+    }
+
+    function renderHeat() {
+      const root = document.getElementById("heat");
+      let html = `<div class="h label">指標</div>`;
+      heatLabels.forEach((m, i) => { html += `<div class="h">${m || heatMonths[i]}</div>`; });
+      html += `<div class="r label">負荷(人月)</div>`;
+      loads.forEach(v => {
+        const text = v === null ? "—" : v.toFixed(1);
+        html += `<div class="r cell ${heatClass(v)}" title="">${text}</div>`;
+      });
+      html += `<div class="r label">過不足</div>`;
+      loads.forEach(v => {
+        if (v === null) { html += `<div class="r cell c0">—</div>`; return; }
+        const d = 2.0 - v;
+        const cls = d < 0 ? "c4" : d < 0.5 ? "c3" : "c1";
+        html += `<div class="r cell ${cls}">${d >= 0 ? "+" : ""}${d.toFixed(1)}</div>`;
+      });
+      html += `<div class="r label">中身</div>`;
+      loadNote.forEach(n => {
+        html += `<div class="r" style="font-size:0.65rem;line-height:1.2;background:#1c2530;color:#9aabbc">${n}</div>`;
+      });
+      root.innerHTML = html;
+    }
+
+    const assignRows = [
+      ["イシダ", "10〜11月", "2", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "27/1〜3", "4.5", '<span class="tag open">未割当</span>', '<span class="prio-high">10月重複</span>'],
+      ["ローリングス", "8〜9月", "3", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "10〜12月", "4.4", '<span class="tag open">未割当</span>', '<span class="prio-mid">Devは別担当必須</span>'],
+      ["イワタニ・ケンボロー", "—", "—", "—", "8〜9月", "1.5", '<span class="tag kimura">木村</span><span class="tag morisaki">森崎</span>', "成立"],
+      ["豊商事", "—", "—", "—", "9〜12月？", "≈6", '<span class="tag open">未割当</span>', '<span class="prio-mid">RD帯と時期重複</span>'],
+      ["三菱重工コンプレッサ", "10〜12月？", "4", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "来期", "≈10", '<span class="tag open">未割当</span>', '<span class="prio-high">スライド候補</span>'],
+      ["東洋捺染", "10〜12月", "4", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "不明", "≈40", '<span class="tag open">未割当</span>', '<span class="prio-high">大型・専用チーム検討</span>'],
+      ["神鋼商事", "未定(今期?)", "1", '<span class="tag kawate">川手</span>', "未定(今期?)", "10", '<span class="tag open">未割当</span>', "時期確定が必要"],
+      ["アムリード", "不明", "3", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "—", "1.5", '<span class="tag open">未割当</span>', "時期未定のため隠し負荷"],
+      ["高圧ガス工業", "来期", "3", '<span class="tag kawate">川手</span><span class="tag kozono">小園</span>', "来期", "10", '<span class="tag open">未割当</span>', "来期スロット化"],
+      ["日東電工BM", "—", "—", "—", "来期", "8.8", '<span class="tag open">未割当</span>', "来期スロット化"],
+      ["TGソリューションズ", "—", "—", "—", "来期", "8.6", '<span class="tag open">未割当</span>', "来期スロット化"],
+      ["ティー・エー・エス", "—", "—", "—", "来期", "≈5", '<span class="tag open">未割当</span>', "来期スロット化"],
+      ["ニトムズ", "—", "—", "—", "来期", "2.35", '<span class="tag open">未割当</span>', "小さめ"],
+      ["アーク", "—", "—", "—", "未定", "0.7", '<span class="tag open">未割当</span>', "隙間案件"],
+    ];
+
+    function renderAssign() {
+      const root = document.getElementById("assign");
+      let html = `<thead><tr>
+        <th>案件</th><th>要件定義</th><th>RD工数</th><th>RD担当</th>
+        <th>開発時期</th><th>Dev工数</th><th>Dev担当</th><th>人積みメモ</th>
+      </tr></thead><tbody>`;
+      assignRows.forEach(r => {
+        html += "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>";
+      });
+      html += "</tbody>";
+      root.innerHTML = html;
+    }
+
+    renderGantt();
+    renderHeat();
+    renderAssign();
+  </script>
+</body>
+</html>

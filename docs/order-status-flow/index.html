@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>注文ステータスと業務フロー</title>
+<style>
+  :root {
+    --ink: #1f2933;
+    --muted: #52606d;
+    --line: #e4e0d8;
+    --paper: #f6f4f0;
+    --white: #fff;
+    --navy: #1b3a4b;
+    --status: #fff4cc;
+    --status-ink: #7a5b12;
+    --work: #e7f0fa;
+    --work-ink: #234e78;
+    --link: #f3eaf8;
+    --link-ink: #5b2d86;
+    --mail: #e5f6ec;
+    --mail-ink: #1f6b45;
+    --stop: #fdecec;
+    --stop-ink: #9b2c2c;
+    --back: #fff1de;
+    --back-ink: #9a5416;
+    --off: #eee;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--paper);
+    font-family: "Yu Gothic", "Hiragino Sans", "Noto Sans JP", "WenQuanYi Micro Hei", "Droid Sans Fallback", sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  a { color: var(--navy); }
+  header.top {
+    background: var(--navy);
+    color: #fff;
+    padding: 36px 20px 28px;
+  }
+  header.top .inner, main, nav.bar .inner { max-width: 1080px; margin: 0 auto; }
+  .kicker { letter-spacing: .12em; font-size: 12px; opacity: .75; margin: 0 0 8px; }
+  h1 { font-size: 28px; line-height: 1.35; margin: 0 0 12px; font-weight: 700; }
+  header.top p { margin: 0; max-width: 46em; color: #e7eef2; }
+  nav.bar {
+    position: sticky; top: 0; z-index: 2;
+    background: rgba(255,255,255,.94);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(8px);
+  }
+  nav.bar .inner { display: flex; gap: 8px; padding: 10px 20px; overflow-x: auto; }
+  nav.bar a {
+    text-decoration: none; white-space: nowrap;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 12px; font-size: 13px; background: #fff;
+  }
+  main { padding: 8px 20px 64px; }
+  section { margin-top: 36px; }
+  h2 { font-size: 22px; margin: 0 0 8px; color: var(--navy); }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .tag {
+    display: inline-block; border-radius: 999px; padding: 2px 10px;
+    font-size: 12px; font-weight: 700; line-height: 1.6;
+  }
+  .tag.status { background: var(--status); color: var(--status-ink); }
+  .tag.work { background: var(--work); color: var(--work-ink); }
+  .tag.link { background: var(--link); color: var(--link-ink); }
+  .tag.mail { background: var(--mail); color: var(--mail-ink); }
+  .tag.stop { background: var(--stop); color: var(--stop-ink); }
+  .tag.back { background: var(--back); color: var(--back-ink); }
+  .tag.off { background: var(--off); color: #555; }
+  .chain {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px;
+  }
+  .node {
+    background: var(--status); color: var(--status-ink);
+    border-radius: 8px; padding: 8px 12px; font-weight: 700;
+  }
+  .node small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
+  .sep { color: var(--muted); font-size: 13px; }
+  .cards { display: grid; gap: 14px; }
+  article.step {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden;
+  }
+  .step head, .step .head {
+    display: flex; gap: 12px; align-items: baseline;
+    padding: 12px 16px; background: #fbfaf7; border-bottom: 1px solid var(--line);
+  }
+  .num {
+    font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 700; min-width: 1.6em;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cell { padding: 12px 16px 14px; border-top: 1px solid var(--line); }
+  .cell:nth-child(odd) { border-right: 1px solid var(--line); }
+  .cell h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; }
+  .cell p { margin: 0; }
+  .cell ul { margin: 0; padding-left: 1.15em; }
+  .cell li + li { margin-top: 4px; }
+  .c-work h4 { color: var(--work-ink); }
+  .c-link h4 { color: var(--link-ink); }
+  .c-mail h4 { color: var(--mail-ink); }
+  .c-next h4 { color: var(--navy); }
+  .callout {
+    background: #fff; border-left: 4px solid var(--navy);
+    border-radius: 0 12px 12px 0; padding: 12px 16px; margin: 12px 0;
+  }
+  .callout.warn { border-left-color: var(--stop-ink); background: #fff8f8; }
+  table {
+    width: 100%; border-collapse: collapse; background: #fff;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    font-size: 13.5px;
+  }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { background: var(--navy); color: #fff; font-weight: 700; position: sticky; top: 46px; }
+  tr:last-child td { border-bottom: 0; }
+  td.nowrap, th.nowrap { white-space: nowrap; }
+  .scroll { overflow-x: auto; border-radius: 12px; }
+  .who { font-weight: 700; }
+  .who.顧客 { color: #1f6b45; }
+  .who.運営 { color: #234e78; }
+  .who.基幹 { color: #9b2c2c; }
+  .who.EDI { color: #5b2d86; }
+  .lanes { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+  .lane {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  }
+  .lane h3 { margin-top: 0; }
+  .arrowbox {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--link-ink); font-weight: 700; min-width: 4.5em;
+  }
+  .pair { display: grid; gap: 10px; }
+  footer.note { color: var(--muted); font-size: 13px; margin-top: 28px; }
+  @media (max-width: 800px) {
+    h1 { font-size: 22px; }
+    .grid { grid-template-columns: 1fr; }
+    .cell:nth-child(odd) { border-right: 0; }
+    .lanes { grid-template-columns: 1fr; }
+    .arrowbox { transform: rotate(90deg); padding: 4px 0; }
+    th { top: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <p class="kicker">EC-RIDER</p>
+    <h1>注文ステータスと業務フロー</h1>
+    <p>元の図は、顧客・ステータス・運営・EDI・基幹・WMS を横に並べ、そのあいだを線でつないでいる。ここでは線を追わずに読めるように、ステータス遷移、業務、システム連携、メールを分けてある。</p>
+  </div>
+</header>
+<nav class="bar">
+  <div class="inner">
+    <a href="#flow">通常の流れ</a>
+    <a href="#transition">ステータス遷移</a>
+    <a href="#work">業務</a>
+    <a href="#system">システム連携</a>
+    <a href="#mail">メール</a>
+    <a href="#branch">キャンセル・返品・差戻し</a>
+    <a href="#gap">図から読み取れないこと</a>
+  </div>
+</nav>
+<main>
+  <section>
+    <h2>4つの色</h2>
+    <p class="lead">同じできごとを、見る観点で分けている。黄がステータス、青が業務、紫がシステム連携、緑がメール。</p>
+    <div class="legend">
+      <span class="tag status">ステータス</span>
+      <span class="tag work">業務</span>
+      <span class="tag link">システム連携</span>
+      <span class="tag mail">メール</span>
+      <span class="tag stop">キャンセル・返品</span>
+      <span class="tag back">差戻し</span>
+      <span class="tag off">利用しない</span>
+    </div>
+    <div class="callout">
+      キャンセルの単位は配送（基幹オーダー）。返品依頼の単位は注文明細。入金待ちと、説明欄にある「出荷指示」は使わない。WMS の列は見出しだけで、箱も線もない。
+    </div>
+  </section>
+
+  <section id="flow">
+    <h2>通常の流れ</h2>
+    <p class="lead">出荷までを上から読む。承認権限がある注文と、EDI の新規注文は、承認待ちを飛ばして受注待ちから始まる。</p>
+    <div class="chain" aria-label="使うステータスの順">
+      <div class="node">承認待ち<small>権限がないとき</small></div>
+      <span class="sep">承認 →</span>
+      <div class="node">受注待ち<small>権限があるとき・EDI はここから</small></div>
+      <span class="sep">与信回答 →</span>
+      <div class="node">出荷待ち</div>
+      <span class="sep">納期回答 →</span>
+      <div class="node">出荷指示済み</div>
+      <span class="sep">出荷 →</span>
+      <div class="node">出荷済み</div>
+    </div>
+
+    <div class="cards" style="margin-top:14px">
+      <article class="step">
+        <div class="head"><span class="num">0</span><strong>注文をつくる</strong></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <ul>
+              <li>顧客がフロントサイトで新規注文する。</li>
+              <li>運営が管理サイトで代理注文する。進み方は、その注文に使ったフロントユーザの承認権限に従う。</li>
+              <li>EDI から新規注文データを受け取って注文を作る。</li>
+            </ul>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <p>EDI から EC-Rider へ新規注文データが渡る。顧客と運営の注文作成は EC-Rider の中で完結する。</p>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <p>この瞬間には送らない。入ったステータスのメールを見る。</p>
+          </div>
+          <div class="cell c-next"><h4>入るステータス</h4>
+            <ul>
+              <li>承認権限がない → 承認待ち</li>
+              <li>承認権限がある → 受注待ち（図の赤線）</li>
+              <li>EDI の新規注文 → 受注待ち（図の赤線。承認待ちへの線はない）</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="head"><span class="num">1</span><span class="tag status">承認待ち</span></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <p>承認権限を持たないフロントユーザの注文が、承認を待っている。</p>
+            <ul>
+              <li>同一販売組織の、承認権限を持つ顧客が注文承認する。</li>
+              <li>運営が代理承認する。</li>
+              <li>リクエスト注文だけ、運営が承認依頼する。ステータスは承認待ちのまま。</li>
+            </ul>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <p>基幹へはまだ渡さない。</p>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <p>注文承認依頼メール。宛先は店舗の承認者。</p>
+          </div>
+          <div class="cell c-next"><h4>次</h4>
+            <p>承認すると受注待ち。キャンセルは下の節。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="head"><span class="num">2</span><span class="tag status">受注待ち</span></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <p>運営の受付待ち。外部サプライヤー商品で受注確認区分があるときは、確認を取る状態でもある。注文金額を変えられるのはここだけ。</p>
+            <ul>
+              <li>運営が注文変更する。変えても受注待ちのまま。</li>
+              <li>基幹が与信を確認する。</li>
+            </ul>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <ul>
+              <li>EC-Rider から基幹へ、30分間隔で注文を連携し、受注扱いとする。</li>
+              <li>与信上限内なら、基幹オーダー番号が返る。EC が取り込むと出荷待ち。</li>
+            </ul>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <p>図では次の3通が、受注待ちから1本の線でまとまっている。箱は顧客レーンにある。</p>
+            <ul>
+              <li>注文受付メール</li>
+              <li>注文承認完了メール</li>
+              <li>注文内容変更通知メール</li>
+            </ul>
+          </div>
+          <div class="cell c-next"><h4>次</h4>
+            <p>与信回答の取込で出荷待ち。与信が上限に達したあとは、図にも説明にも書かれていない。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="head"><span class="num">3</span><span class="tag status">出荷待ち</span></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <p>納期回答を待っている。顧客と運営の追加操作は、キャンセルと差戻し以外は図にない。</p>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <p>在庫があれば基幹からピック番号が返る。EC が取り込むと出荷指示済み。与信回答と納期回答は同じタイミングになることがある。</p>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <p>なし。入金確認メールは出荷待ちから線が出ているが、利用しない。</p>
+          </div>
+          <div class="cell c-next"><h4>次</h4>
+            <p>納期回答の取込で出荷指示済み。差戻すと受注待ち。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="head"><span class="num">4</span><span class="tag status">出荷指示済み</span></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <p>納期回答済み。商品の出荷準備をする。準備の担当レーンは図にない。出荷そのものは基幹が、納品予定日に合わせて行う。</p>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <p>基幹から出荷実績が返る。EC が取り込むと出荷済み。</p>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <p>納期回答メール。出荷指示済みから顧客レーンへ線が出ている。説明文は、納期回答の取込時に送る、とある。</p>
+          </div>
+          <div class="cell c-next"><h4>次</h4>
+            <p>出荷実績の取込で出荷済み。差戻すと出荷待ち。顧客のキャンセル依頼はここまで届かない。運営のキャンセルはできる。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="head"><span class="num">5</span><span class="tag status">出荷済み</span></div>
+        <div class="grid">
+          <div class="cell c-work"><h4>業務</h4>
+            <p>出荷が終わっている。顧客も運営も、注文明細ごとに返品依頼できる。説明文は出荷済み以降。</p>
+          </div>
+          <div class="cell c-link"><h4>システム連携</h4>
+            <p>出荷実績を取り込んだ結果がこのステータス。ここから新たに渡すデータは図にない。</p>
+          </div>
+          <div class="cell c-mail"><h4>メール</h4>
+            <ul>
+              <li>出荷完了メール。説明文の宛先は注文者。</li>
+              <li>出荷完了メール（店舗宛て）。</li>
+            </ul>
+          </div>
+          <div class="cell c-next"><h4>次</h4>
+            <p>返品依頼で返品依頼中。</p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="transition">
+    <h2>ステータス遷移</h2>
+    <p class="lead">通常進行は上のカードと同じ。ここには入口の分岐と、ステータスが変わらない操作を置いてある。キャンセル・返品・差戻しは次の節。</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>前</th><th>誰が</th><th>操作</th><th>条件</th><th>後</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>（なし）</td><td class="who 顧客">顧客</td><td>新規注文</td><td>承認権限がない</td><td>承認待ち</td></tr>
+          <tr><td>（なし）</td><td class="who 顧客">顧客</td><td>新規注文</td><td>承認権限がある。図の赤線</td><td>受注待ち</td></tr>
+          <tr><td>（なし）</td><td class="who 運営">運営</td><td>代理注文</td><td>使ったフロントユーザに承認権限がない</td><td>承認待ち</td></tr>
+          <tr><td>（なし）</td><td class="who 運営">運営</td><td>代理注文</td><td>使ったフロントユーザに承認権限がある。図の赤線</td><td>受注待ち</td></tr>
+          <tr><td>（なし）</td><td class="who EDI">EDI</td><td>新規注文</td><td>承認待ちへの線はない。図の赤線</td><td>受注待ち</td></tr>
+          <tr><td>承認待ち</td><td class="who 顧客">顧客</td><td>注文承認</td><td>同一販売組織で承認権限を持つ</td><td>受注待ち</td></tr>
+          <tr><td>承認待ち</td><td class="who 運営">運営</td><td>代理承認</td><td></td><td>受注待ち</td></tr>
+          <tr><td>承認待ち</td><td class="who 運営">運営</td><td>承認依頼</td><td>リクエスト注文のみ。緑線</td><td>承認待ちのまま</td></tr>
+          <tr><td>受注待ち</td><td class="who 運営">運営</td><td>注文変更</td><td>金額を変えられるのはここだけ</td><td>受注待ちのまま</td></tr>
+          <tr><td>受注待ち</td><td class="who 基幹">基幹</td><td>与信回答</td><td>上限内。基幹オーダー番号が返る</td><td>出荷待ち</td></tr>
+          <tr><td>出荷待ち</td><td class="who 基幹">基幹</td><td>納期回答</td><td>在庫がありピック番号が返る。与信回答と同時のことがある</td><td>出荷指示済み</td></tr>
+          <tr><td>出荷指示済み</td><td class="who 基幹">基幹</td><td>出荷</td><td>納品予定日に合わせ、出荷実績が返る</td><td>出荷済み</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="work">
+    <h2>業務</h2>
+    <p class="lead">誰が何をするか。データの向きは次の節。</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>誰が</th><th>業務</th><th>できるとき</th><th>したあと</th><th>単位</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="who 顧客">顧客</td><td>新規注文</td><td>注文前</td><td>承認待ち、または受注待ち</td><td>注文</td></tr>
+          <tr><td class="who 顧客">顧客</td><td>注文承認</td><td>承認待ち</td><td>受注待ち</td><td>注文</td></tr>
+          <tr><td class="who 顧客">顧客</td><td>キャンセル依頼</td><td>承認待ち、受注待ち、出荷待ち</td><td>キャンセル依頼中</td><td>配送</td></tr>
+          <tr><td class="who 顧客">顧客</td><td>返品依頼</td><td>出荷済み</td><td>返品依頼中</td><td>注文明細</td></tr>
+          <tr><td class="who 運営">運営</td><td>代理注文</td><td>注文前</td><td>承認待ち、または受注待ち</td><td>注文</td></tr>
+          <tr><td class="who 運営">運営</td><td>代理承認</td><td>承認待ち</td><td>受注待ち</td><td>注文</td></tr>
+          <tr><td class="who 運営">運営</td><td>承認依頼</td><td>承認待ち。リクエスト注文のみ</td><td>承認待ちのまま</td><td>注文</td></tr>
+          <tr><td class="who 運営">運営</td><td>注文変更</td><td>受注待ち</td><td>受注待ちのまま</td><td>注文</td></tr>
+          <tr><td class="who 運営">運営</td><td>キャンセル</td><td>承認待ち、受注待ち、出荷待ち、出荷指示済み</td><td>キャンセル完了</td><td>配送</td></tr>
+          <tr><td class="who 運営">運営</td><td>返品依頼</td><td>出荷済み</td><td>返品依頼中</td><td>注文明細</td></tr>
+          <tr><td class="who 運営">運営</td><td>差戻し</td><td>下の4通りだけ</td><td>決まった戻り先</td><td></td></tr>
+          <tr><td class="who 運営">運営</td><td>出荷準備</td><td>出荷指示済み</td><td>出荷は基幹が行う</td><td>担当レーンは図にない</td></tr>
+          <tr><td class="who 基幹">基幹</td><td>与信チェック</td><td>受注待ちで注文を受け取ったあと</td><td>出荷待ち</td><td>注文</td></tr>
+          <tr><td class="who 基幹">基幹</td><td>納期回答</td><td>出荷待ち</td><td>出荷指示済み</td><td>注文</td></tr>
+          <tr><td class="who 基幹">基幹</td><td>出荷</td><td>出荷指示済み</td><td>出荷済み</td><td>注文</td></tr>
+          <tr><td class="who 基幹">基幹</td><td>キャンセル</td><td>キャンセル依頼中で、すでに連携済み</td><td>キャンセル完了</td><td>配送</td></tr>
+          <tr><td class="who 基幹">基幹</td><td>返品</td><td>返品依頼中。本社へ返送され、返品できる</td><td>返品完了</td><td>注文明細</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="system">
+    <h2>システム連携</h2>
+    <p class="lead">矢印の向きが、データの向き。取り込むとステータスが変わる。</p>
+    <div class="pair">
+      <div class="lanes">
+        <div class="lane"><h3>EDI</h3><p>新規注文データ</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>受注待ち。承認待ちへの線はない。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>EC-Rider</h3><p>受注待ちの注文。30分間隔。</p></div>
+        <div class="arrowbox">→ 基幹</div>
+        <div class="lane"><h3>結果</h3><p>基幹で受注扱い。ステータス名は受注待ちのまま。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>基幹</h3><p>与信上限内なら基幹オーダー番号。</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>取り込んで出荷待ち。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>基幹</h3><p>在庫があればピック番号。納期回答。</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>取り込んで出荷指示済み。納期回答メール。与信回答と同時のことがある。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>基幹</h3><p>出荷実績。</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>取り込んで出荷済み。出荷完了メールを注文者と店舗へ。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>EC-Rider</h3><p>キャンセル依頼。基幹連携済みのときだけ。配送単位。</p></div>
+        <div class="arrowbox">→ 基幹</div>
+        <div class="lane"><h3>結果</h3><p>基幹が、できるかできないかを返す。連携前は渡さない。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>基幹</h3><p>キャンセルデータ。</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>取り込んでキャンセル完了。不能のあとは図にない。</p></div>
+      </div>
+      <div class="lanes">
+        <div class="lane"><h3>基幹</h3><p>返品実績。本社へ返送され、返品できる場合。</p></div>
+        <div class="arrowbox">→ EC</div>
+        <div class="lane"><h3>結果</h3><p>取り込んで返品完了。返品依頼を基幹へ送る線は図にない。</p></div>
+      </div>
+    </div>
+    <div class="callout">WMS へ渡すもの、WMS から受け取るものは、図に描かれていない。</div>
+  </section>
+
+  <section id="mail">
+    <h2>メール</h2>
+    <p class="lead">どのステータスに紐づくかで並べてある。受注待ちの3通は、元の図では1つの箱。</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>メール</th><th>ステータス</th><th>いつ</th><th>宛先</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>注文承認依頼メール</td><td>承認待ち</td><td>承認待ちになったとき</td><td>店舗の承認者</td></tr>
+          <tr><td>注文受付メール</td><td>受注待ち</td><td>受注待ちに紐づく。3通は1本の線</td><td>図は顧客レーン。説明文に宛先の文言はない</td></tr>
+          <tr><td>注文承認完了メール</td><td>受注待ち</td><td>同上。名前からは、承認を経て受注待ちに入ったとき</td><td>同上</td></tr>
+          <tr><td>注文内容変更通知メール</td><td>受注待ち</td><td>同上。名前からは、注文変更のとき</td><td>同上</td></tr>
+          <tr><td>納期回答メール</td><td>出荷指示済み</td><td>納期回答を取り込んだとき</td><td>図は顧客レーン。説明文に宛先の文言はない</td></tr>
+          <tr><td>出荷完了メール</td><td>出荷済み</td><td>出荷実績を取り込んだとき</td><td>注文者</td></tr>
+          <tr><td>出荷完了メール（店舗宛て）</td><td>出荷済み</td><td>同上</td><td>店舗</td></tr>
+          <tr><td>返品依頼メール</td><td>返品依頼中</td><td>返品依頼中になったとき</td><td>注文者。顧客レーンと運営レーンの両方に同じ箱がある</td></tr>
+          <tr><td>返品完了メール</td><td>返品完了</td><td>返品実績を取り込んだとき</td><td>注文者</td></tr>
+          <tr><td>注文キャンセル依頼メール</td><td>キャンセル依頼中</td><td>キャンセル依頼中になったとき</td><td>注文者</td></tr>
+          <tr><td>注文キャンセル完了メール</td><td>キャンセル完了</td><td>キャンセル完了になったとき</td><td>注文者</td></tr>
+          <tr><td>入金確認メール</td><td>出荷待ち</td><td>利用しない。線は出荷待ちから出ている</td><td>図は顧客レーン</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="branch">
+    <h2>キャンセル、返品、差戻し</h2>
+
+    <h3>キャンセル</h3>
+    <p class="lead">顧客が依頼する経路と、運営が直接完了させる経路は別。</p>
+    <div class="chain">
+      <div class="node">承認待ち<br>受注待ち<br>出荷待ち<small>顧客が依頼できる</small></div>
+      <span class="sep">キャンセル依頼 →</span>
+      <div class="node">キャンセル依頼中<small>注文キャンセル依頼メール</small></div>
+      <span class="sep">連携前なら →</span>
+      <div class="node">キャンセル完了<small>注文キャンセル完了メール</small></div>
+    </div>
+    <div class="callout" style="margin-top:12px">
+      すでに基幹へ連携済みなら、キャンセル依頼を基幹へ渡す。基幹のキャンセルデータを取り込んでキャンセル完了になる。不能と返ったあとは図にない。
+    </div>
+    <div class="callout">
+      運営は、承認待ち、受注待ち、出荷待ち、出荷指示済みからキャンセルでき、キャンセル依頼中を経由せずキャンセル完了へ進む。出荷指示済みでキャンセルできるのは運営だけ。図のこの線は基幹を経由していない。説明文は、基幹からキャンセルデータが返って取り込み完了する、とも書いている。
+    </div>
+
+    <h3>返品</h3>
+    <div class="chain">
+      <div class="node">出荷済み</div>
+      <span class="sep">顧客または運営が明細単位で依頼 →</span>
+      <div class="node">返品依頼中<small>返品依頼メール（注文者）</small></div>
+      <span class="sep">基幹が返品 →</span>
+      <div class="node">返品完了<small>返品完了メール（注文者）</small></div>
+    </div>
+    <p class="lead" style="margin-top:10px">基幹が処理するのは、商品が本社へ返送され、返品できる場合。返品依頼を基幹へ送る線は図にない。返ってくるのは返品実績。</p>
+
+    <h3>差戻し</h3>
+    <p class="lead">運営が戻せるのはこの4つだけ。戻したあとに別のメールが描かれているわけではない。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>いま</th><th></th><th>戻った先</th></tr></thead>
+        <tbody>
+          <tr><td>出荷指示済み</td><td>→</td><td>出荷待ち</td></tr>
+          <tr><td>出荷待ち</td><td>→</td><td>受注待ち</td></tr>
+          <tr><td>キャンセル依頼中</td><td>→</td><td>出荷待ち</td></tr>
+          <tr><td>返品依頼中</td><td>→</td><td>出荷済み</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lead">キャンセル依頼中の差戻しは、依頼する前のステータスへ戻す線ではない。行き先は出荷待ちに固定されている。</p>
+  </section>
+
+  <section id="gap">
+    <h2>図から読み取れないこと</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>対象</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>与信が上限に達したとき</td><td>上限内なら出荷待ち、とだけある。達したあとのステータスはない。</td></tr>
+          <tr><td>キャンセル不能</td><td>基幹が不能を返したあとのステータスはない。</td></tr>
+          <tr><td>返品不可</td><td>返品できる場合の処理だけが書かれている。</td></tr>
+          <tr><td>WMS と出荷準備</td><td>WMS 列は空。出荷準備の担当も図にない。</td></tr>
+          <tr><td>出荷指示</td><td>説明欄に「利用しない」の見出しだけがある。使うのは出荷指示済み。</td></tr>
+          <tr><td>入金</td><td>入金待ち、入金、入金確認、入金確認メールは利用しない。入金確認から出荷待ちへ進む線だけある。</td></tr>
+          <tr><td>基幹の楕円</td><td>「与信回答」「納期回答」「注文変更」が1つの楕円に入っている。矢印の先は出荷待ちだけ。納期回答で出荷指示済みになることと、注文変更が受注待ちの運営操作であることは、別の線と説明文の側に書かれている。</td></tr>
+          <tr><td>運営キャンセルの経路</td><td>図は基幹を経由せずキャンセル完了へ直結する。説明文は基幹からのキャンセルデータ取込で完了する、と書いている。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <footer class="note">同じ内容をシートに分けた Excel が、このページと同じフォルダの「注文ステータスと業務フロー.xlsx」にある。開くと「通常の流れ」から始まる。</footer>
+  </section>
+</main>
+</body>
+</html>

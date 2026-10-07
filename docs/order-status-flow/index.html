@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>注文ステータスと業務フロー</title>
+<style>
+  :root {
+    --ink: #1f2933;
+    --status: #fff4cc; --status-line: #8a6a2f; --status-ink: #6b5420;
+    --action: #e7f0fa; --action-line: #2c5282; --action-ink: #234e78;
+    --mail: #e5f6ec; --mail-line: #276749; --mail-ink: #1f6b45;
+    --link: #f3eaf8; --link-line: #6b3fa0; --link-ink: #5b2d86;
+    --back: #fff1de; --back-line: #c05621; --back-ink: #9a5416;
+    --skip: #fdecec; --skip-line: #c53030; --skip-ink: #9b2c2c;
+    --off: #f3f4f6; --off-ink: #4b5563;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background: #f7f5f2;
+    font-family: "Yu Gothic", "Hiragino Sans", "Noto Sans JP", "WenQuanYi Micro Hei", "Droid Sans Fallback", sans-serif;
+  }
+  header { padding: 22px 28px 8px; }
+  h1 { margin: 0 0 8px; font-size: 26px; color: #1b3a4b; }
+  .key { font-size: 15px; font-weight: 700; }
+  .key span { margin-right: 16px; }
+  .s { color: var(--status-ink); } .a { color: var(--action-ink); }
+  .m { color: var(--mail-ink); } .l { color: var(--link-ink); }
+  .b { color: var(--back-ink); } .k { color: var(--skip-ink); }
+  .board { padding: 8px 20px 40px; overflow-x: auto; }
+  table.flow { border-collapse: separate; border-spacing: 8px 6px; min-width: 1480px; width: 100%; }
+  th { font-size: 13px; text-align: center; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
+  td { vertical-align: middle; text-align: center; }
+  .box { border-radius: 10px; border: 2px solid; padding: 10px 12px; font-weight: 700; line-height: 1.45; min-height: 64px; min-width: 168px; display: flex; align-items: center; justify-content: center; word-break: keep-all; }
+  .box small { display: block; font-weight: 600; font-size: 12px; }
+  .status { background: var(--status); border-color: var(--status-line); color: var(--status-ink); font-size: 18px; }
+  .action { background: var(--action); border-color: var(--action-line); color: var(--action-ink); font-size: 14px; }
+  .mail { background: var(--mail); border-color: var(--mail-line); color: var(--mail-ink); font-size: 14px; }
+  .link { background: var(--link); border-color: var(--link-line); color: var(--link-ink); font-size: 14px; }
+  .skip { background: var(--skip); border-color: var(--skip-line); color: var(--skip-ink); font-size: 14px; }
+  .back { background: var(--back); border-color: var(--back-line); color: var(--back-ink); font-size: 12px; min-height: 0; padding: 4px; }
+  th.th-m { background: var(--mail); color: var(--mail-ink); }
+  th.th-a { background: var(--action); color: var(--action-ink); }
+  th.th-s { background: var(--status); color: var(--status-ink); }
+  th.th-c { background: #eeeae4; color: #52606d; }
+  th.th-l { background: var(--link); color: var(--link-ink); }
+  .arr { color: #52606d; font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .arr.down { color: var(--status-ink); }
+  .arr.link { color: var(--link-ink); }
+  .arr.skip { color: var(--skip-ink); }
+  .stack { display: grid; gap: 6px; }
+  .off { margin-top: 8px; background: var(--off); color: var(--off-ink); border-radius: 10px; padding: 10px 14px; min-width: 1480px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>注文ステータスと業務フロー</h1>
+  <p class="key">
+    <span class="s">ステータス</span>
+    <span class="a">EC上のアクション</span>
+    <span class="m">メール</span>
+    <span class="l">システム連携</span>
+    <span class="b">差戻し</span>
+    <span class="k">承認待ちを飛ばす</span>
+  </p>
+</header>
+<div class="board">
+<table class="flow">
+  <thead>
+    <tr>
+      <th class="th-m">メール</th>
+      <th class="th-a">ECアクション（顧客）</th>
+      <th class="th-s">ステータス</th>
+      <th class="th-c">キャンセル</th>
+      <th class="th-a">ECアクション（運営）</th>
+      <th class="th-l">システム連携</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td></td>
+      <td><div class="box action">新規注文<small>フロントサイト</small></div></td>
+      <td></td>
+      <td></td>
+      <td><div class="box action">代理注文<small>管理サイト。権限は使ったユーザに従う</small></div></td>
+      <td><div class="box link">EDI → EC<small>新規注文</small></div></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td><div class="box status">承認権限は？</div><div class="arr down">権限なし ↓</div></td>
+      <td></td>
+      <td></td>
+      <td><div class="box skip">権限あり・EDI<small>承認待ちを飛ばす</small></div><div class="arr skip">↓ 受注待ちへ直行</div></td>
+    </tr>
+    <tr>
+      <td><div class="box mail">注文承認依頼メール<small>店舗の承認者へ</small></div></td>
+      <td><div class="box action">注文承認<small>同じ販売組織の承認者</small></div></td>
+      <td><div class="box status">承認待ち</div><div class="arr down">↓ 承認・代理承認</div></td>
+      <td><div class="box action">キャンセル依頼できる<small>↓</small></div></td>
+      <td>
+        <div class="stack">
+          <div class="box action">代理承認</div>
+          <div class="box action">↺ 承認依頼<small>リクエスト注文のみ。ステータスはそのまま</small></div>
+        </div>
+      </td>
+      <td><div class="box skip">権限あり・EDIはここを飛ばして下の受注待ちへ</div></td>
+    </tr>
+    <tr>
+      <td>
+        <div class="stack">
+          <div class="box mail">注文受付メール</div>
+          <div class="box mail">注文承認完了メール</div>
+          <div class="box mail">注文内容変更通知メール</div>
+        </div>
+      </td>
+      <td></td>
+      <td>
+        <div class="box status">受注待ち</div>
+        <div class="arr link">↓ 与信回答</div>
+        <div class="box back">↑ 差戻し</div>
+      </td>
+      <td><div class="box action">承認待ち・受注待ち・出荷待ちから顧客がキャンセル依頼<small>↓</small></div></td>
+      <td><div class="box action">↺ 注文変更<small>金額を変えられるのはここだけ。ステータスはそのまま</small></div></td>
+      <td>
+        <div class="stack">
+          <div class="box link">EC → 基幹<small>30分ごとに注文連携。受注扱い</small></div>
+          <div class="box link">基幹 → EC<small>与信回答。上限内なら基幹オーダー番号</small></div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td>
+        <div class="box status">出荷待ち</div>
+        <div class="arr link">↓ 納期回答</div>
+        <div class="box back">↑ 差戻し</div>
+      </td>
+      <td>
+        <div class="stack">
+          <div class="box status">キャンセル依頼中</div>
+          <div class="box mail">注文キャンセル依頼メール<small>注文者へ</small></div>
+          <div class="box back">← 差戻し先は出荷待ち</div>
+          <div class="arr skip">連携前は、このまま完了へ ↓</div>
+        </div>
+      </td>
+      <td></td>
+      <td><div class="box link">基幹 → EC<small>納期回答。在庫があればピック番号。与信と同時のこともある</small></div></td>
+    </tr>
+    <tr>
+      <td><div class="box mail">納期回答メール</div></td>
+      <td></td>
+      <td><div class="box status">出荷指示済み</div><div class="arr link">↓ 出荷</div></td>
+      <td>
+        <div class="stack">
+          <div class="box link">連携後<small>基幹がキャンセル</small></div>
+          <div class="box status">キャンセル完了</div>
+          <div class="box mail">注文キャンセル完了メール<small>注文者へ</small></div>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <div class="box action">出荷準備</div>
+          <div class="box action">キャンセル<small>承認待ちからここまで。依頼中は経由しない</small></div>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <div class="box link">基幹 → EC<small>キャンセル。連携済みの依頼だけ</small></div>
+          <div class="box link">基幹 → EC<small>出荷実績</small></div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="stack">
+          <div class="box mail">出荷完了メール<small>注文者へ</small></div>
+          <div class="box mail">出荷完了メール<small>店舗宛て</small></div>
+        </div>
+      </td>
+      <td><div class="box action">返品依頼<small>注文明細ごと</small></div></td>
+      <td>
+        <div class="box status">出荷済み</div>
+        <div class="arr">↓ 返品依頼</div>
+        <div class="box back">↑ 差戻し</div>
+      </td>
+      <td></td>
+      <td><div class="box action">返品依頼<small>注文明細ごと</small></div></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><div class="box mail">返品依頼メール<small>注文者へ</small></div></td>
+      <td></td>
+      <td><div class="box status">返品依頼中</div><div class="arr link">↓ 返品実績</div></td>
+      <td></td>
+      <td></td>
+      <td><div class="box link">基幹 → EC<small>返品実績。本社へ返送され、返品できるとき</small></div></td>
+    </tr>
+    <tr>
+      <td><div class="box mail">返品完了メール<small>注文者へ</small></div></td>
+      <td></td>
+      <td><div class="box status">返品完了</div></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+<div class="off">利用しない　　入金待ち　　入金　　入金確認　　入金確認メール　　出荷指示　　WMSの列は空</div>
+</div>
+</body>
+</html>

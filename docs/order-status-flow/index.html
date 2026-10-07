@@ -52,7 +52,7 @@
     border-bottom: 1px solid var(--line);
     backdrop-filter: blur(8px);
   }
-  nav.bar .inner { display: flex; gap: 8px; padding: 10px 20px; overflow-x: auto; }
+  nav.bar .inner { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 20px; }
   nav.bar a {
     text-decoration: none; white-space: nowrap;
     border: 1px solid var(--line); border-radius: 999px;
@@ -79,10 +79,13 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
     background: #fff; border: 1px solid var(--line); border-radius: 14px;
     padding: 16px;
+    break-inside: avoid;
   }
+  .hop { display: inline-flex; align-items: center; gap: 8px; }
   .node {
     background: var(--status); color: var(--status-ink);
     border-radius: 8px; padding: 8px 12px; font-weight: 700;
+    break-inside: avoid;
   }
   .node small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
   .sep { color: var(--muted); font-size: 13px; }
@@ -127,7 +130,8 @@
   tr:last-child td { border-bottom: 0; }
   td.nowrap, th.nowrap { white-space: nowrap; }
   .scroll { overflow-x: auto; border-radius: 12px; }
-  .who { font-weight: 700; }
+  .who { font-weight: 700; white-space: nowrap; }
+  th { white-space: nowrap; }
   .who.顧客 { color: #1f6b45; }
   .who.運営 { color: #234e78; }
   .who.基幹 { color: #9b2c2c; }
@@ -137,10 +141,12 @@
     background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
   }
   .lane h3 { margin-top: 0; }
+  .lanes, article.step { break-inside: avoid; }
   .arrowbox {
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
     color: var(--link-ink); font-weight: 700; min-width: 4.5em;
   }
+  .arrowbox::before { content: "→"; }
   .pair { display: grid; gap: 10px; }
   footer.note { color: var(--muted); font-size: 13px; margin-top: 28px; }
   @media (max-width: 800px) {
@@ -148,8 +154,9 @@
     .grid { grid-template-columns: 1fr; }
     .cell:nth-child(odd) { border-right: 0; }
     .lanes { grid-template-columns: 1fr; }
-    .arrowbox { transform: rotate(90deg); padding: 4px 0; }
-    th { top: 0; }
+    .arrowbox { min-width: 0; padding: 2px 0; }
+    .arrowbox::before { content: "↓"; }
+    th { top: 0; white-space: normal; }
   }
 </style>
 </head>
@@ -194,15 +201,11 @@
     <h2>通常の流れ</h2>
     <p class="lead">出荷までを上から読む。承認権限がある注文と、EDI の新規注文は、承認待ちを飛ばして受注待ちから始まる。</p>
     <div class="chain" aria-label="使うステータスの順">
-      <div class="node">承認待ち<small>権限がないとき</small></div>
-      <span class="sep">承認 →</span>
-      <div class="node">受注待ち<small>権限があるとき・EDI はここから</small></div>
-      <span class="sep">与信回答 →</span>
-      <div class="node">出荷待ち</div>
-      <span class="sep">納期回答 →</span>
-      <div class="node">出荷指示済み</div>
-      <span class="sep">出荷 →</span>
-      <div class="node">出荷済み</div>
+      <span class="hop"><span class="node">承認待ち<small>権限がないとき</small></span><span class="sep">承認 →</span></span>
+      <span class="hop"><span class="node">受注待ち<small>権限があるとき・EDI はここから</small></span><span class="sep">与信回答 →</span></span>
+      <span class="hop"><span class="node">出荷待ち</span><span class="sep">納期回答 →</span></span>
+      <span class="hop"><span class="node">出荷指示済み</span><span class="sep">出荷 →</span></span>
+      <span class="node">出荷済み</span>
     </div>
 
     <div class="cards" style="margin-top:14px">
@@ -407,42 +410,42 @@
     <div class="pair">
       <div class="lanes">
         <div class="lane"><h3>EDI</h3><p>新規注文データ</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>受注待ち。承認待ちへの線はない。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>EC-Rider</h3><p>受注待ちの注文。30分間隔。</p></div>
-        <div class="arrowbox">→ 基幹</div>
+        <div class="arrowbox">基幹へ</div>
         <div class="lane"><h3>結果</h3><p>基幹で受注扱い。ステータス名は受注待ちのまま。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>基幹</h3><p>与信上限内なら基幹オーダー番号。</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>取り込んで出荷待ち。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>基幹</h3><p>在庫があればピック番号。納期回答。</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>取り込んで出荷指示済み。納期回答メール。与信回答と同時のことがある。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>基幹</h3><p>出荷実績。</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>取り込んで出荷済み。出荷完了メールを注文者と店舗へ。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>EC-Rider</h3><p>キャンセル依頼。基幹連携済みのときだけ。配送単位。</p></div>
-        <div class="arrowbox">→ 基幹</div>
+        <div class="arrowbox">基幹へ</div>
         <div class="lane"><h3>結果</h3><p>基幹が、できるかできないかを返す。連携前は渡さない。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>基幹</h3><p>キャンセルデータ。</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>取り込んでキャンセル完了。不能のあとは図にない。</p></div>
       </div>
       <div class="lanes">
         <div class="lane"><h3>基幹</h3><p>返品実績。本社へ返送され、返品できる場合。</p></div>
-        <div class="arrowbox">→ EC</div>
+        <div class="arrowbox">ECへ</div>
         <div class="lane"><h3>結果</h3><p>取り込んで返品完了。返品依頼を基幹へ送る線は図にない。</p></div>
       </div>
     </div>
@@ -481,11 +484,9 @@
     <h3>キャンセル</h3>
     <p class="lead">顧客が依頼する経路と、運営が直接完了させる経路は別。</p>
     <div class="chain">
-      <div class="node">承認待ち<br>受注待ち<br>出荷待ち<small>顧客が依頼できる</small></div>
-      <span class="sep">キャンセル依頼 →</span>
-      <div class="node">キャンセル依頼中<small>注文キャンセル依頼メール</small></div>
-      <span class="sep">連携前なら →</span>
-      <div class="node">キャンセル完了<small>注文キャンセル完了メール</small></div>
+      <span class="hop"><span class="node">承認待ち<br>受注待ち<br>出荷待ち<small>顧客が依頼できる</small></span><span class="sep">キャンセル依頼 →</span></span>
+      <span class="hop"><span class="node">キャンセル依頼中<small>注文キャンセル依頼メール</small></span><span class="sep">連携前なら →</span></span>
+      <span class="node">キャンセル完了<small>注文キャンセル完了メール</small></span>
     </div>
     <div class="callout" style="margin-top:12px">
       すでに基幹へ連携済みなら、キャンセル依頼を基幹へ渡す。基幹のキャンセルデータを取り込んでキャンセル完了になる。不能と返ったあとは図にない。
@@ -496,11 +497,9 @@
 
     <h3>返品</h3>
     <div class="chain">
-      <div class="node">出荷済み</div>
-      <span class="sep">顧客または運営が明細単位で依頼 →</span>
-      <div class="node">返品依頼中<small>返品依頼メール（注文者）</small></div>
-      <span class="sep">基幹が返品 →</span>
-      <div class="node">返品完了<small>返品完了メール（注文者）</small></div>
+      <span class="hop"><span class="node">出荷済み</span><span class="sep">顧客または運営が明細単位で依頼 →</span></span>
+      <span class="hop"><span class="node">返品依頼中<small>返品依頼メール（注文者）</small></span><span class="sep">基幹が返品 →</span></span>
+      <span class="node">返品完了<small>返品完了メール（注文者）</small></span>
     </div>
     <p class="lead" style="margin-top:10px">基幹が処理するのは、商品が本社へ返送され、返品できる場合。返品依頼を基幹へ送る線は図にない。返ってくるのは返品実績。</p>
 
